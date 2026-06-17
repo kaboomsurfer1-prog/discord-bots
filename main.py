@@ -14,29 +14,16 @@ REACTION_EMOJI = os.getenv("REACTION_EMOJI", "✅")
 
 SERVER_NAME = os.getenv("SERVER_NAME", "LEGACY OF CLT")
 
-# Ruoli autorizzati a usare /reaction_setup e !reaction_setup
+# SOLO questi ruoli possono usare reaction_setup e testwelcome
 ALLOWED_SETUP_ROLE_IDS = [
     1505906085901504522,
-    1505905849774641243
+    1505905849774641243,
 ]
 
 REACTION_TITLE = os.getenv("REACTION_TITLE", "📜 Verificare & Regulament")
 REACTION_TEXT = os.getenv(
     "REACTION_TEXT",
-    """Bun venit pe serverul LEGACY OF CLT!
-
-Înainte de a primi acces la toate canalele, te rugăm să citești regulamentul și să îl respecți.
-
-✅ Respectă toți membrii comunității.
-✅ Este interzis limbajul ofensator, rasist sau discriminatoriu.
-✅ Nu face spam și nu abuza de canale.
-✅ Respectă deciziile staff-ului.
-✅ Folosește canalele conform destinației lor.
-✅ Orice încălcare a regulamentului poate duce la sancțiuni.
-
-Dacă ai citit și ai înțeles regulamentul serverului, apasă pe reacția ✅ de mai jos pentru a primi acces complet.
-
-Îți dorim distracție plăcută pe LEGACY OF CLT!"""
+    """Bun venit pe serverul LEGACY OF CLT!\n\nÎnainte de a primi acces la toate canalele, te rugăm să citești regulamentul și să îl respecți.\n\n✅ Respectă toți membrii comunității.\n✅ Este interzis limbajul ofensator, rasist sau discriminatoriu.\n✅ Nu face spam și nu abuza de canale.\n✅ Respectă deciziile staff-ului.\n✅ Folosește canalele conform destinației lor.\n✅ Orice încălcare a regulamentului poate duce la sancțiuni.\n\nDacă ai citit și ai înțeles regulamentul serverului, apasă pe reacția ✅ de mai jos pentru a primi acces complet.\n\nÎți dorim distracție plăcută pe LEGACY OF CLT!"""
 )
 
 intents = discord.Intents.default()
@@ -48,10 +35,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 
 def has_setup_permission(member: discord.Member) -> bool:
-    """Permette il comando solo ai ruoli specificati."""
-    if member.guild_permissions.administrator:
-        return True
-
+    """Permette il comando SOLO ai ruoli specificati."""
     return any(role.id in ALLOWED_SETUP_ROLE_IDS for role in member.roles)
 
 
@@ -78,11 +62,18 @@ def circle_crop(img: Image.Image, size: int) -> Image.Image:
     return out
 
 
-def centered_text(draw, xy, text, fnt, fill):
-    x, y = xy
+def draw_text_with_shadow(draw, position, text, fnt, fill, shadow=(0, 0, 0, 180), offset=3):
+    x, y = position
+    draw.text((x + offset, y + offset), text, font=fnt, fill=shadow)
+    draw.text((x, y), text, font=fnt, fill=fill)
+
+
+def draw_centered_text_with_shadow(draw, center_x, y, text, fnt, fill, shadow=(0, 0, 0, 180), offset=3):
     box = draw.textbbox((0, 0), text, font=fnt)
-    tw = box[2] - box[0]
-    draw.text((x - tw // 2, y), text, font=fnt, fill=fill)
+    text_width = box[2] - box[0]
+    x = center_x - text_width // 2
+    draw.text((x + offset, y + offset), text, font=fnt, fill=shadow)
+    draw.text((x, y), text, font=fnt, fill=fill)
 
 
 async def create_welcome_card(member: discord.Member) -> discord.File:
@@ -90,10 +81,12 @@ async def create_welcome_card(member: discord.Member) -> discord.File:
     overlay = Image.new("RGBA", base.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(overlay)
 
-    d.rounded_rectangle((18, 18, 982, 342), radius=28, fill=(0, 0, 0, 82), outline=(255, 255, 255, 70), width=2)
-    d.rounded_rectangle((30, 30, 970, 330), radius=24, outline=(20, 110, 255, 110), width=2)
-    d.rounded_rectangle((38, 38, 962, 322), radius=22, outline=(255, 30, 30, 80), width=1)
+    # frame principale
+    d.rounded_rectangle((18, 18, 982, 342), radius=28, fill=(0, 0, 0, 95), outline=(255, 255, 255, 80), width=2)
+    d.rounded_rectangle((30, 30, 970, 330), radius=24, outline=(20, 110, 255, 120), width=2)
+    d.rounded_rectangle((38, 38, 962, 322), radius=22, outline=(255, 30, 30, 100), width=1)
 
+    # avatar
     avatar_asset = member.display_avatar.replace(size=256, static_format="png")
     avatar_bytes = await avatar_asset.read()
     avatar = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA")
@@ -104,7 +97,7 @@ async def create_welcome_card(member: discord.Member) -> discord.File:
     gd.ellipse((425, 28, 575, 178), fill=(255, 0, 0, 100))
     gd.ellipse((418, 28, 568, 178), outline=(0, 120, 255, 255), width=8)
     gd.ellipse((432, 28, 582, 178), outline=(255, 20, 20, 255), width=8)
-    glow = glow.filter(ImageFilter.GaussianBlur(5))
+    glow = glow.filter(ImageFilter.GaussianBlur(6))
     base.alpha_composite(glow)
     base.alpha_composite(avatar, (425, 28))
 
@@ -116,16 +109,51 @@ async def create_welcome_card(member: discord.Member) -> discord.File:
     d = ImageDraw.Draw(base)
 
     name = member.display_name
-    if len(name) > 20:
-        name = name[:17] + "..."
+    if len(name) > 18:
+        name = name[:15] + "..."
 
-    centered_text(d, (500, 190), "BINE AI VENIT", font(30, True), (235, 235, 245, 255))
-    centered_text(d, (500, 225), f"@{name}", font(52, True), (255, 60, 50, 255))
-    centered_text(d, (500, 286), SERVER_NAME, font(38, True), (55, 145, 255, 255))
-    centered_text(d, (500, 326), f"Member #{member.guild.member_count}", font(24, False), (225, 225, 225, 235))
+    # testi più grandi e più belli
+    draw_centered_text_with_shadow(
+        d, 500, 188,
+        "BINE AI VENIT",
+        font(40, True),
+        (245, 245, 250, 255)
+    )
 
-    d.text((58, 292), "DISCORD.GG/LEGACYCLT", font=font(18, True), fill=(240, 240, 245, 220))
-    d.text((760, 292), "LEGACY OF CLT", font=font(18, True), fill=(240, 240, 245, 220))
+    draw_centered_text_with_shadow(
+        d, 500, 228,
+        f"@{name}",
+        font(60, True),
+        (255, 70, 60, 255)
+    )
+
+    draw_centered_text_with_shadow(
+        d, 500, 286,
+        SERVER_NAME,
+        font(42, True),
+        (70, 160, 255, 255)
+    )
+
+    draw_centered_text_with_shadow(
+        d, 500, 324,
+        f"Member #{member.guild.member_count}",
+        font(22, True),
+        (235, 235, 235, 255)
+    )
+
+    draw_text_with_shadow(
+        d, (42, 300),
+        "discord.gg/legacyofclt",
+        font(20, True),
+        (240, 240, 245, 235)
+    )
+
+    draw_text_with_shadow(
+        d, (780, 300),
+        "LEGACY OF CLT",
+        font(18, True),
+        (240, 240, 245, 235)
+    )
 
     buf = io.BytesIO()
     base.save(buf, "PNG")
@@ -271,6 +299,36 @@ async def reaction_setup_prefix(ctx):
         f"✅ Mesajul de verificare a fost creat.\n"
         f"ID mesaj: `{msg.id}`\n\n"
         f"Copiază acest ID în Railway la variabila `REACTION_MESSAGE_ID`, poi fai Redeploy."
+    )
+
+
+@bot.tree.command(name="testwelcome", description="Testează imaginea welcome.")
+async def testwelcome(interaction: discord.Interaction):
+    if not isinstance(interaction.user, discord.Member) or not has_setup_permission(interaction.user):
+        await interaction.response.send_message(
+            "❌ Nu ai permisiunea să folosești această comandă.",
+            ephemeral=True
+        )
+        return
+
+    card = await create_welcome_card(interaction.user)
+    await interaction.response.send_message(
+        content=f"✅ Preview welcome pentru {interaction.user.mention}",
+        file=card,
+        ephemeral=True
+    )
+
+
+@bot.command(name="testwelcome")
+async def testwelcome_prefix(ctx):
+    if not has_setup_permission(ctx.author):
+        await ctx.reply("❌ Nu ai permisiunea să folosești această comandă.")
+        return
+
+    card = await create_welcome_card(ctx.author)
+    await ctx.reply(
+        content=f"✅ Preview welcome pentru {ctx.author.mention}",
+        file=card
     )
 
 
