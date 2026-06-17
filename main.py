@@ -87,104 +87,93 @@ def fit_font(draw, text, max_width, start_size, min_size=24, bold=True):
     return font(min_size, bold)
 
 
-def draw_shadow(draw, xy, text, fnt, fill, offset=4, shadow=(0, 0, 0, 230)):
+def draw_shadow(draw, xy, text, fnt, fill, offset=3, shadow=(0, 0, 0, 210)):
     x, y = xy
     draw.text((x + offset, y + offset), text, font=fnt, fill=shadow)
     draw.text((x, y), text, font=fnt, fill=fill)
 
 
-def draw_center(draw, center_x, y, text, fnt, fill, offset=4, shadow=(0, 0, 0, 230)):
-    box = draw.textbbox((0, 0), text, font=fnt)
-    tw = box[2] - box[0]
-    x = center_x - tw // 2
-    draw_shadow(draw, (x, y), text, fnt, fill, offset=offset, shadow=shadow)
-
-
 async def create_welcome_card(member: discord.Member) -> discord.File:
-    # Immagine più alta e leggibile per Discord
-    width, height = 1200, 500
+    # Clean, modern, leggibile
+    width, height = 1200, 420
 
     bg = Image.open("assets/background.png").convert("RGBA").resize((width, height))
     bg = bg.filter(ImageFilter.GaussianBlur(1))
 
-    # Overlay scuro generale, così il testo si legge bene
+    # overlay scuro per far risaltare il testo
+    bg.alpha_composite(Image.new("RGBA", (width, height), (8, 10, 20, 115)))
+
     base = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     base.alpha_composite(bg)
-    base.alpha_composite(Image.new("RGBA", (width, height), (0, 0, 0, 85)))
 
     d = ImageDraw.Draw(base, "RGBA")
 
-    # Pannello centrale semi-trasparente
-    d.rounded_rectangle((35, 35, width - 35, height - 35), radius=34,
-                        fill=(5, 8, 18, 120), outline=(255, 255, 255, 120), width=3)
+    # pannello principale singolo, pulito
+    panel = (45, 38, width - 45, height - 38)
+    d.rounded_rectangle(panel, radius=28, fill=(10, 12, 18, 110), outline=(255, 255, 255, 55), width=2)
 
-    # Bordo blu/rosso
-    d.rounded_rectangle((52, 52, width - 52, height - 52), radius=28,
-                        outline=(35, 145, 255, 220), width=4)
-    d.rounded_rectangle((64, 64, width - 64, height - 64), radius=23,
-                        outline=(255, 45, 45, 190), width=3)
+    # barra accentata in alto
+    d.rounded_rectangle((70, 60, width - 70, 66), radius=3, fill=(45, 145, 255, 210))
+    d.rounded_rectangle((width - 280, 60, width - 70, 66), radius=3, fill=(255, 60, 60, 210))
 
-    # Box avatar sinistra
-    d.rounded_rectangle((85, 92, 385, 390), radius=30,
-                        fill=(0, 0, 0, 115), outline=(255, 255, 255, 80), width=2)
-
+    # avatar a sinistra
     avatar_asset = member.display_avatar.replace(size=512, static_format="png")
     avatar_bytes = await avatar_asset.read()
     avatar = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA")
-    avatar_size = 210
+    avatar_size = 170
     avatar = circle_crop(avatar, avatar_size)
 
-    avatar_x, avatar_y = 130, 120
+    avatar_x = 85
+    avatar_y = 122
 
-    # Glow avatar
     glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow, "RGBA")
-    gd.ellipse((avatar_x - 22, avatar_y - 22, avatar_x + avatar_size + 22, avatar_y + avatar_size + 22),
-               fill=(35, 145, 255, 120))
-    gd.ellipse((avatar_x - 10, avatar_y - 10, avatar_x + avatar_size + 10, avatar_y + avatar_size + 10),
-               outline=(255, 45, 45, 255), width=12)
-    glow = glow.filter(ImageFilter.GaussianBlur(9))
+    gd.ellipse((avatar_x - 12, avatar_y - 12, avatar_x + avatar_size + 12, avatar_y + avatar_size + 12),
+               fill=(55, 135, 255, 70))
+    glow = glow.filter(ImageFilter.GaussianBlur(12))
     base.alpha_composite(glow)
     base.alpha_composite(avatar, (avatar_x, avatar_y))
 
     d = ImageDraw.Draw(base, "RGBA")
-    d.ellipse((avatar_x - 8, avatar_y - 8, avatar_x + avatar_size + 8, avatar_y + avatar_size + 8),
-              outline=(255, 255, 255, 255), width=5)
-    d.arc((avatar_x - 16, avatar_y - 16, avatar_x + avatar_size + 16, avatar_y + avatar_size + 16),
-          start=90, end=270, fill=(35, 145, 255, 255), width=10)
-    d.arc((avatar_x - 16, avatar_y - 16, avatar_x + avatar_size + 16, avatar_y + avatar_size + 16),
-          start=270, end=90, fill=(255, 45, 45, 255), width=10)
+    d.ellipse((avatar_x - 7, avatar_y - 7, avatar_x + avatar_size + 7, avatar_y + avatar_size + 7),
+              outline=(255, 255, 255, 235), width=4)
+    d.arc((avatar_x - 11, avatar_y - 11, avatar_x + avatar_size + 11, avatar_y + avatar_size + 11),
+          start=90, end=270, fill=(45, 145, 255, 255), width=6)
+    d.arc((avatar_x - 11, avatar_y - 11, avatar_x + avatar_size + 11, avatar_y + avatar_size + 11),
+          start=270, end=90, fill=(255, 60, 60, 255), width=6)
 
-    # Testi a destra
+    # separatore sottile
+    d.line((300, 100, 300, height - 100), fill=(255, 255, 255, 35), width=2)
+
+    # testi a destra
     name = member.display_name
     if len(name) > 24:
         name = name[:21] + "..."
 
-    text_x = 440
-    max_w = 690
+    text_x = 355
+    max_width = 720
 
-    welcome = "BINE AI VENIT"
-    user_text = f"@{name}"
-    member_text = f"Member #{member.guild.member_count}"
+    title_font = font(58, True)
+    name_font = fit_font(d, f"@{name}", max_width, 68, 36, True)
+    server_font = fit_font(d, SERVER_NAME, max_width, 46, 28, True)
+    small_font = font(24, True)
+    member_font = font(28, True)
+    footer_font = font(22, True)
 
-    welcome_font = font(72, True)
-    name_font = fit_font(d, user_text, max_w, 86, 42, True)
-    server_font = fit_font(d, SERVER_NAME, max_w, 70, 40, True)
+    draw_shadow(d, (text_x, 92), "WELCOME TO", small_font, (185, 195, 210, 255), offset=2)
+    draw_shadow(d, (text_x, 122), "BINE AI VENIT", title_font, (255, 255, 255, 255), offset=4)
+    draw_shadow(d, (text_x, 205), f"@{name}", name_font, (255, 75, 65, 255), offset=4)
+    draw_shadow(d, (text_x, 275), SERVER_NAME, server_font, (75, 165, 255, 255), offset=4)
+    draw_shadow(d, (text_x, 328), f"Member #{member.guild.member_count}", member_font, (235, 235, 240, 255), offset=3)
 
-    # Striscia scura dietro al testo
-    d.rounded_rectangle((410, 105, 1100, 365), radius=28,
-                        fill=(0, 0, 0, 95), outline=(255, 255, 255, 45), width=2)
+    # footer pulito
+    d.line((75, height - 78, width - 75, height - 78), fill=(255, 255, 255, 35), width=1)
+    draw_shadow(d, (80, height - 62), "discord.gg/legacyofclt", footer_font, (245, 245, 250, 245), offset=2)
 
-    draw_shadow(d, (445, 118), welcome, welcome_font, (255, 255, 255, 255), offset=5)
-    draw_shadow(d, (445, 200), user_text, name_font, (255, 70, 60, 255), offset=5)
-    draw_shadow(d, (445, 295), SERVER_NAME, server_font, (75, 165, 255, 255), offset=5)
-    draw_shadow(d, (445, 362), member_text, font(36, True), (235, 235, 240, 255), offset=4)
-
-    # Footer grande e leggibile
-    d.rounded_rectangle((70, 415, width - 70, 460), radius=18,
-                        fill=(0, 0, 0, 115), outline=(255, 255, 255, 50), width=1)
-    draw_shadow(d, (95, 421), "discord.gg/legacyofclt", font(30, True), (245, 245, 250, 255), offset=3)
-    draw_shadow(d, (width - 330, 421), "LEGACY OF CLT", font(30, True), (245, 245, 250, 255), offset=3)
+    right_text = "LEGACY OF CLT"
+    bbox = d.textbbox((0, 0), right_text, font=footer_font)
+    tw = bbox[2] - bbox[0]
+    draw_shadow(d, (width - 80 - tw, height - 62), right_text, footer_font, (245, 245, 250, 245), offset=2)
 
     buf = io.BytesIO()
     base.save(buf, "PNG")
@@ -264,7 +253,7 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
             await member.remove_roles(role, reason="Reaction role removed")
             print(f"Rol eliminat: {role.name} -> {member}")
         except discord.Forbidden:
-            print("Eroare: botul nu are permisiunea Manage Roles sau rolul este prea sus.")
+            print("Eroare: botul nu are permisiunea Manage Roles sau rolul este troppo sus.")
         except Exception as e:
             print(f"Eroare la eliminarea rolului: {e}")
 
