@@ -1,5 +1,6 @@
 import os
 import io
+from pathlib import Path
 import discord
 from discord.ext import commands
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -13,6 +14,7 @@ REACTION_ROLE_ID = int(os.getenv("REACTION_ROLE_ID", "1505912122926694550"))
 REACTION_EMOJI = os.getenv("REACTION_EMOJI", "✅")
 
 SERVER_NAME = os.getenv("SERVER_NAME", "LEGACY OF CLT")
+ASSET_DIR = Path(__file__).resolve().parent / "assets"
 
 ALLOWED_SETUP_ROLE_IDS = [
     1505906085901504522,
@@ -52,6 +54,8 @@ def has_setup_permission(member: discord.Member) -> bool:
 
 def font(size: int, bold: bool = False):
     paths = [
+        "C:/Windows/Fonts/segoeuib.ttf" if bold else "C:/Windows/Fonts/segoeui.ttf",
+        "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
@@ -91,82 +95,233 @@ def draw_shadow(draw, xy, text, fnt, fill, offset=4, shadow=(0, 0, 0, 220)):
     draw.text((x, y), text, font=fnt, fill=fill)
 
 
+def draw_glow_text(base, xy, text, fnt, fill, glow, blur=8, stroke_width=1):
+    glow_layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    glow_draw = ImageDraw.Draw(glow_layer, "RGBA")
+    glow_draw.text(xy, text, font=fnt, fill=glow)
+    glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(blur))
+    base.alpha_composite(glow_layer)
+
+    draw = ImageDraw.Draw(base, "RGBA")
+    draw.text(
+        xy,
+        text,
+        font=fnt,
+        fill=fill,
+        stroke_width=stroke_width,
+        stroke_fill=(4, 7, 15, 230),
+    )
+
+
+def draw_gradient_bar(base, xy, size, radius, left, right):
+    w, h = size
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+    layer_draw = ImageDraw.Draw(layer, "RGBA")
+
+    for x in range(w):
+        amount = x / max(w - 1, 1)
+        color = tuple(int(left[i] + (right[i] - left[i]) * amount) for i in range(4))
+        layer_draw.line((x, 0, x, h), fill=color)
+
+    mask = Image.new("L", size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, w - 1, h - 1), radius=radius, fill=255)
+    layer.putalpha(mask)
+    base.alpha_composite(layer, xy)
+
+
+def draw_pill(draw, x, y, text, fnt, fill, text_fill, outline=(255, 255, 255, 35), pad_x=18, height=44):
+    bbox = draw.textbbox((0, 0), text, font=fnt)
+    tw = bbox[2] - bbox[0]
+    th = bbox[3] - bbox[1]
+    width = tw + pad_x * 2
+
+    draw.rounded_rectangle(
+        (x, y, x + width, y + height),
+        radius=height // 2,
+        fill=fill,
+        outline=outline,
+        width=1,
+    )
+    draw.text((x + pad_x, y + (height - th) / 2 - bbox[1]), text, font=fnt, fill=text_fill)
+    return x + width
+
+
 async def create_welcome_card(member: discord.Member) -> discord.File:
     width, height = 1200, 420
 
-    bg = Image.open("assets/background.png").convert("RGBA").resize((width, height))
-    bg = bg.filter(ImageFilter.GaussianBlur(1))
-    bg.alpha_composite(Image.new("RGBA", (width, height), (8, 10, 20, 110)))
+    bg = Image.open(ASSET_DIR / "background.png").convert("RGBA").resize((width, height), Image.LANCZOS)
+    bg = bg.filter(ImageFilter.GaussianBlur(2))
 
     base = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     base.alpha_composite(bg)
+    base.alpha_composite(Image.new("RGBA", (width, height), (4, 7, 16, 165)))
+
+    color_wash = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    wash_draw = ImageDraw.Draw(color_wash, "RGBA")
+    wash_draw.rectangle((0, 0, width // 2, height), fill=(35, 135, 255, 45))
+    wash_draw.rectangle((width // 2, 0, width, height), fill=(255, 45, 60, 40))
+    color_wash = color_wash.filter(ImageFilter.GaussianBlur(70))
+    base.alpha_composite(color_wash)
+
+    try:
+        logo = Image.open(ASSET_DIR / "logo.png").convert("RGBA")
+        logo.thumbnail((430, 430), Image.LANCZOS)
+        alpha = logo.getchannel("A").point(lambda value: int(value * 0.12))
+        logo.putalpha(alpha)
+        base.alpha_composite(logo, (width - 465, -5))
+    except Exception:
+        pass
+
     d = ImageDraw.Draw(base, "RGBA")
 
     # clean main panel
-    d.rounded_rectangle((45, 38, width - 45, height - 38), radius=28,
-                        fill=(8, 10, 18, 105), outline=(255, 255, 255, 60), width=2)
+    d.rounded_rectangle(
+        (45, 38, width - 45, height - 38),
+        radius=30,
+        fill=(6, 9, 18, 178),
+        outline=(255, 255, 255, 70),
+        width=2,
+    )
 
     # top accent
-    d.rounded_rectangle((70, 58, width - 70, 66), radius=4, fill=(55, 150, 255, 215))
-    d.rounded_rectangle((width - 290, 58, width - 70, 66), radius=4, fill=(255, 65, 65, 215))
+    draw_gradient_bar(
+        base,
+        (70, 58),
+        (width - 140, 8),
+        4,
+        (65, 160, 255, 255),
+        (255, 70, 82, 255),
+    )
 
     # avatar
     avatar_asset = member.display_avatar.replace(size=512, static_format="png")
     avatar_bytes = await avatar_asset.read()
     avatar = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA")
-    avatar_size = 170
+    avatar_size = 220
     avatar = circle_crop(avatar, avatar_size)
 
-    avatar_x, avatar_y = 82, 122
+    avatar_x, avatar_y = 83, 101
 
-    glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    gd = ImageDraw.Draw(glow, "RGBA")
-    gd.ellipse((avatar_x - 10, avatar_y - 10, avatar_x + avatar_size + 10, avatar_y + avatar_size + 10),
-               fill=(60, 135, 255, 70))
-    glow = glow.filter(ImageFilter.GaussianBlur(10))
-    base.alpha_composite(glow)
+    avatar_shadow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    shadow_draw = ImageDraw.Draw(avatar_shadow, "RGBA")
+    shadow_draw.ellipse(
+        (avatar_x - 18, avatar_y - 12, avatar_x + avatar_size + 18, avatar_y + avatar_size + 24),
+        fill=(0, 0, 0, 165),
+    )
+    avatar_shadow = avatar_shadow.filter(ImageFilter.GaussianBlur(18))
+    base.alpha_composite(avatar_shadow)
+
+    ring = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    ring_draw = ImageDraw.Draw(ring, "RGBA")
+    ring_draw.ellipse(
+        (avatar_x - 18, avatar_y - 18, avatar_x + avatar_size + 18, avatar_y + avatar_size + 18),
+        fill=(255, 255, 255, 20),
+    )
+    ring_draw.ellipse(
+        (avatar_x - 12, avatar_y - 12, avatar_x + avatar_size + 12, avatar_y + avatar_size + 12),
+        outline=(255, 255, 255, 225),
+        width=5,
+    )
+    ring_draw.arc(
+        (avatar_x - 18, avatar_y - 18, avatar_x + avatar_size + 18, avatar_y + avatar_size + 18),
+        start=90,
+        end=270,
+        fill=(65, 160, 255, 255),
+        width=8,
+    )
+    ring_draw.arc(
+        (avatar_x - 18, avatar_y - 18, avatar_x + avatar_size + 18, avatar_y + avatar_size + 18),
+        start=270,
+        end=90,
+        fill=(255, 70, 82, 255),
+        width=8,
+    )
+    ring = ring.filter(ImageFilter.GaussianBlur(0.2))
+    base.alpha_composite(ring)
     base.alpha_composite(avatar, (avatar_x, avatar_y))
 
     d = ImageDraw.Draw(base, "RGBA")
-    d.ellipse((avatar_x - 6, avatar_y - 6, avatar_x + avatar_size + 6, avatar_y + avatar_size + 6),
-              outline=(255, 255, 255, 235), width=4)
-    d.arc((avatar_x - 10, avatar_y - 10, avatar_x + avatar_size + 10, avatar_y + avatar_size + 10),
-          start=90, end=270, fill=(55, 150, 255, 255), width=6)
-    d.arc((avatar_x - 10, avatar_y - 10, avatar_x + avatar_size + 10, avatar_y + avatar_size + 10),
-          start=270, end=90, fill=(255, 65, 65, 255), width=6)
+    d.ellipse(
+        (avatar_x - 8, avatar_y - 8, avatar_x + avatar_size + 8, avatar_y + avatar_size + 8),
+        outline=(255, 255, 255, 230),
+        width=4,
+    )
 
     # separator
-    d.line((290, 98, 290, height - 94), fill=(255, 255, 255, 40), width=2)
+    d.line((340, 92, 340, height - 92), fill=(255, 255, 255, 45), width=2)
 
-    # TEXTS MUCH BIGGER
+    # big, clean text hierarchy
     name = member.display_name
     if len(name) > 24:
         name = name[:21] + "..."
 
-    text_x = 345
-    max_width = 760
+    text_x = 382
+    max_width = 720
 
-    small_font = font(30, True)
-    title_font = font(72, True)
-    name_font = fit_font(d, f"@{name}", max_width, 76, 40, True)
-    server_font = fit_font(d, SERVER_NAME, max_width, 56, 32, True)
-    member_font = font(34, True)
-    footer_font = font(24, True)
+    small_font = font(28, True)
+    title_font = fit_font(d, "BINE AI VENIT!", max_width, 84, 60, True)
+    name_font = fit_font(d, f"@{name}", max_width, 66, 40, True)
+    server_font = fit_font(d, SERVER_NAME, 420, 30, 22, True)
+    member_font = font(27, True)
+    footer_font = font(18, True)
 
-    draw_shadow(d, (text_x, 88), "WELCOME TO", small_font, (190, 198, 210, 255), offset=2)
-    draw_shadow(d, (text_x, 120), "BINE AI VENIT", title_font, (255, 255, 255, 255), offset=4)
-    draw_shadow(d, (text_x, 205), f"@{name}", name_font, (255, 78, 68, 255), offset=4)
-    draw_shadow(d, (text_x, 285), SERVER_NAME, server_font, (78, 170, 255, 255), offset=4)
-    draw_shadow(d, (text_x, 336), f"Member #{member.guild.member_count}", member_font, (235, 235, 240, 255), offset=3)
+    d.text((text_x, 89), "WELCOME TO", font=small_font, fill=(175, 190, 210, 255))
+    draw_glow_text(
+        base,
+        (text_x, 121),
+        "BINE AI VENIT!",
+        title_font,
+        (255, 255, 255, 255),
+        (65, 160, 255, 95),
+        blur=9,
+        stroke_width=1,
+    )
+    draw_glow_text(
+        base,
+        (text_x, 216),
+        f"@{name}",
+        name_font,
+        (255, 82, 86, 255),
+        (255, 70, 82, 85),
+        blur=8,
+        stroke_width=1,
+    )
+
+    d = ImageDraw.Draw(base, "RGBA")
+    member_count = getattr(getattr(member, "guild", None), "member_count", None)
+    member_text = f"MEMBER #{member_count}" if member_count else "NEW MEMBER"
+    pill_y = 292
+    next_x = draw_pill(
+        d,
+        text_x,
+        pill_y,
+        SERVER_NAME,
+        server_font,
+        (65, 160, 255, 32),
+        (215, 235, 255, 255),
+        outline=(65, 160, 255, 75),
+        height=42,
+    )
+    draw_pill(
+        d,
+        next_x + 16,
+        pill_y,
+        member_text,
+        member_font,
+        (255, 70, 82, 28),
+        (255, 226, 228, 255),
+        outline=(255, 70, 82, 70),
+        height=42,
+    )
 
     # footer
-    d.line((75, height - 76, width - 75, height - 76), fill=(255, 255, 255, 40), width=1)
-    draw_shadow(d, (80, height - 60), "discord.gg/legacyofclt", footer_font, (245, 245, 250, 245), offset=2)
+    d.line((75, height - 72, width - 75, height - 72), fill=(255, 255, 255, 32), width=1)
+    draw_shadow(d, (80, height - 66), "discord.gg/legacyofclt", footer_font, (235, 240, 248, 235), offset=2)
 
-    right_text = "LEGACY OF CLT"
-    bbox = d.textbbox((0, 0), right_text, font=footer_font)
+    footer_right = "LEGACY OF CLT"
+    bbox = d.textbbox((0, 0), footer_right, font=footer_font)
     tw = bbox[2] - bbox[0]
-    draw_shadow(d, (width - 80 - tw, height - 60), right_text, footer_font, (245, 245, 250, 245), offset=2)
+    draw_shadow(d, (width - 80 - tw, height - 66), footer_right, footer_font, (235, 240, 248, 235), offset=2)
 
     buf = io.BytesIO()
     base.save(buf, "PNG")
