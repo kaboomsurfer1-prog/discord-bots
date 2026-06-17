@@ -23,7 +23,20 @@ ALLOWED_SETUP_ROLE_IDS = [
 REACTION_TITLE = os.getenv("REACTION_TITLE", "📜 Verificare & Regulament")
 REACTION_TEXT = os.getenv(
     "REACTION_TEXT",
-    """Bun venit pe serverul LEGACY OF CLT!\n\nÎnainte de a primi acces la toate canalele, te rugăm să citești regulamentul și să îl respecți.\n\n✅ Respectă toți membrii comunității.\n✅ Este interzis limbajul ofensator, rasist sau discriminatoriu.\n✅ Nu face spam și nu abuza de canale.\n✅ Respectă deciziile staff-ului.\n✅ Folosește canalele conform destinației lor.\n✅ Orice încălcare a regulamentului poate duce la sancțiuni.\n\nDacă ai citit și ai înțeles regulamentul serverului, apasă pe reacția ✅ de mai jos pentru a primi acces complet.\n\nÎți dorim distracție plăcută pe LEGACY OF CLT!"""
+    """Bun venit pe serverul LEGACY OF CLT!
+
+Înainte de a primi acces la toate canalele, te rugăm să citești regulamentul și să îl respecți.
+
+✅ Respectă toți membrii comunității.
+✅ Este interzis limbajul ofensator, rasist sau discriminatoriu.
+✅ Nu face spam și nu abuza de canale.
+✅ Respectă deciziile staff-ului.
+✅ Folosește canalele conform destinației lor.
+✅ Orice încălcare a regulamentului poate duce la sancțiuni.
+
+Dacă ai citit și ai înțeles regulamentul serverului, apasă pe reacția ✅ de mai jos pentru a primi acces complet.
+
+Îți dorim distracție plăcută pe LEGACY OF CLT!"""
 )
 
 intents = discord.Intents.default()
@@ -41,6 +54,7 @@ def has_setup_permission(member: discord.Member) -> bool:
 
 def font(size: int, bold: bool = False):
     paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
     ]
@@ -62,98 +76,115 @@ def circle_crop(img: Image.Image, size: int) -> Image.Image:
     return out
 
 
-def draw_text_with_shadow(draw, position, text, fnt, fill, shadow=(0, 0, 0, 180), offset=3):
-    x, y = position
+def fit_font(draw, text, max_width, start_size, min_size=24, bold=True):
+    size = start_size
+    while size >= min_size:
+        f = font(size, bold)
+        box = draw.textbbox((0, 0), text, font=f)
+        if box[2] - box[0] <= max_width:
+            return f
+        size -= 2
+    return font(min_size, bold)
+
+
+def draw_shadow(draw, xy, text, fnt, fill, offset=4, shadow=(0, 0, 0, 230)):
+    x, y = xy
     draw.text((x + offset, y + offset), text, font=fnt, fill=shadow)
     draw.text((x, y), text, font=fnt, fill=fill)
 
 
-def draw_centered_text_with_shadow(draw, center_x, y, text, fnt, fill, shadow=(0, 0, 0, 180), offset=3):
+def draw_center(draw, center_x, y, text, fnt, fill, offset=4, shadow=(0, 0, 0, 230)):
     box = draw.textbbox((0, 0), text, font=fnt)
-    text_width = box[2] - box[0]
-    x = center_x - text_width // 2
-    draw.text((x + offset, y + offset), text, font=fnt, fill=shadow)
-    draw.text((x, y), text, font=fnt, fill=fill)
+    tw = box[2] - box[0]
+    x = center_x - tw // 2
+    draw_shadow(draw, (x, y), text, fnt, fill, offset=offset, shadow=shadow)
 
 
 async def create_welcome_card(member: discord.Member) -> discord.File:
-    base = Image.open("assets/background.png").convert("RGBA").resize((1000, 360))
-    overlay = Image.new("RGBA", base.size, (0, 0, 0, 0))
-    d = ImageDraw.Draw(overlay)
+    # Immagine più alta e leggibile per Discord
+    width, height = 1200, 500
 
-    # frame principale
-    d.rounded_rectangle((18, 18, 982, 342), radius=28, fill=(0, 0, 0, 95), outline=(255, 255, 255, 80), width=2)
-    d.rounded_rectangle((30, 30, 970, 330), radius=24, outline=(20, 110, 255, 120), width=2)
-    d.rounded_rectangle((38, 38, 962, 322), radius=22, outline=(255, 30, 30, 100), width=1)
+    bg = Image.open("assets/background.png").convert("RGBA").resize((width, height))
+    bg = bg.filter(ImageFilter.GaussianBlur(1))
 
-    # avatar
-    avatar_asset = member.display_avatar.replace(size=256, static_format="png")
+    # Overlay scuro generale, così il testo si legge bene
+    base = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    base.alpha_composite(bg)
+    base.alpha_composite(Image.new("RGBA", (width, height), (0, 0, 0, 85)))
+
+    d = ImageDraw.Draw(base, "RGBA")
+
+    # Pannello centrale semi-trasparente
+    d.rounded_rectangle((35, 35, width - 35, height - 35), radius=34,
+                        fill=(5, 8, 18, 120), outline=(255, 255, 255, 120), width=3)
+
+    # Bordo blu/rosso
+    d.rounded_rectangle((52, 52, width - 52, height - 52), radius=28,
+                        outline=(35, 145, 255, 220), width=4)
+    d.rounded_rectangle((64, 64, width - 64, height - 64), radius=23,
+                        outline=(255, 45, 45, 190), width=3)
+
+    # Box avatar sinistra
+    d.rounded_rectangle((85, 92, 385, 390), radius=30,
+                        fill=(0, 0, 0, 115), outline=(255, 255, 255, 80), width=2)
+
+    avatar_asset = member.display_avatar.replace(size=512, static_format="png")
     avatar_bytes = await avatar_asset.read()
     avatar = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA")
-    avatar = circle_crop(avatar, 150)
+    avatar_size = 210
+    avatar = circle_crop(avatar, avatar_size)
 
-    glow = Image.new("RGBA", base.size, (0, 0, 0, 0))
-    gd = ImageDraw.Draw(glow)
-    gd.ellipse((425, 28, 575, 178), fill=(255, 0, 0, 100))
-    gd.ellipse((418, 28, 568, 178), outline=(0, 120, 255, 255), width=8)
-    gd.ellipse((432, 28, 582, 178), outline=(255, 20, 20, 255), width=8)
-    glow = glow.filter(ImageFilter.GaussianBlur(6))
+    avatar_x, avatar_y = 130, 120
+
+    # Glow avatar
+    glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow, "RGBA")
+    gd.ellipse((avatar_x - 22, avatar_y - 22, avatar_x + avatar_size + 22, avatar_y + avatar_size + 22),
+               fill=(35, 145, 255, 120))
+    gd.ellipse((avatar_x - 10, avatar_y - 10, avatar_x + avatar_size + 10, avatar_y + avatar_size + 10),
+               outline=(255, 45, 45, 255), width=12)
+    glow = glow.filter(ImageFilter.GaussianBlur(9))
     base.alpha_composite(glow)
-    base.alpha_composite(avatar, (425, 28))
+    base.alpha_composite(avatar, (avatar_x, avatar_y))
 
-    d.ellipse((421, 24, 579, 182), outline=(245, 245, 245, 255), width=4)
-    d.arc((421, 24, 579, 182), start=90, end=270, fill=(0, 120, 255, 255), width=7)
-    d.arc((421, 24, 579, 182), start=270, end=90, fill=(255, 40, 40, 255), width=7)
+    d = ImageDraw.Draw(base, "RGBA")
+    d.ellipse((avatar_x - 8, avatar_y - 8, avatar_x + avatar_size + 8, avatar_y + avatar_size + 8),
+              outline=(255, 255, 255, 255), width=5)
+    d.arc((avatar_x - 16, avatar_y - 16, avatar_x + avatar_size + 16, avatar_y + avatar_size + 16),
+          start=90, end=270, fill=(35, 145, 255, 255), width=10)
+    d.arc((avatar_x - 16, avatar_y - 16, avatar_x + avatar_size + 16, avatar_y + avatar_size + 16),
+          start=270, end=90, fill=(255, 45, 45, 255), width=10)
 
-    base.alpha_composite(overlay)
-    d = ImageDraw.Draw(base)
-
+    # Testi a destra
     name = member.display_name
-    if len(name) > 18:
-        name = name[:15] + "..."
+    if len(name) > 24:
+        name = name[:21] + "..."
 
-    # testi più grandi e più belli
-    draw_centered_text_with_shadow(
-        d, 500, 188,
-        "BINE AI VENIT",
-        font(40, True),
-        (245, 245, 250, 255)
-    )
+    text_x = 440
+    max_w = 690
 
-    draw_centered_text_with_shadow(
-        d, 500, 228,
-        f"@{name}",
-        font(60, True),
-        (255, 70, 60, 255)
-    )
+    welcome = "BINE AI VENIT"
+    user_text = f"@{name}"
+    member_text = f"Member #{member.guild.member_count}"
 
-    draw_centered_text_with_shadow(
-        d, 500, 286,
-        SERVER_NAME,
-        font(42, True),
-        (70, 160, 255, 255)
-    )
+    welcome_font = font(72, True)
+    name_font = fit_font(d, user_text, max_w, 86, 42, True)
+    server_font = fit_font(d, SERVER_NAME, max_w, 70, 40, True)
 
-    draw_centered_text_with_shadow(
-        d, 500, 324,
-        f"Member #{member.guild.member_count}",
-        font(22, True),
-        (235, 235, 235, 255)
-    )
+    # Striscia scura dietro al testo
+    d.rounded_rectangle((410, 105, 1100, 365), radius=28,
+                        fill=(0, 0, 0, 95), outline=(255, 255, 255, 45), width=2)
 
-    draw_text_with_shadow(
-        d, (42, 300),
-        "discord.gg/legacyofclt",
-        font(20, True),
-        (240, 240, 245, 235)
-    )
+    draw_shadow(d, (445, 118), welcome, welcome_font, (255, 255, 255, 255), offset=5)
+    draw_shadow(d, (445, 200), user_text, name_font, (255, 70, 60, 255), offset=5)
+    draw_shadow(d, (445, 295), SERVER_NAME, server_font, (75, 165, 255, 255), offset=5)
+    draw_shadow(d, (445, 362), member_text, font(36, True), (235, 235, 240, 255), offset=4)
 
-    draw_text_with_shadow(
-        d, (780, 300),
-        "LEGACY OF CLT",
-        font(18, True),
-        (240, 240, 245, 235)
-    )
+    # Footer grande e leggibile
+    d.rounded_rectangle((70, 415, width - 70, 460), radius=18,
+                        fill=(0, 0, 0, 115), outline=(255, 255, 255, 50), width=1)
+    draw_shadow(d, (95, 421), "discord.gg/legacyofclt", font(30, True), (245, 245, 250, 255), offset=3)
+    draw_shadow(d, (width - 330, 421), "LEGACY OF CLT", font(30, True), (245, 245, 250, 255), offset=3)
 
     buf = io.BytesIO()
     base.save(buf, "PNG")
