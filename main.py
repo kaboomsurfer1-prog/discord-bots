@@ -14,7 +14,6 @@ REACTION_EMOJI = os.getenv("REACTION_EMOJI", "✅")
 
 SERVER_NAME = os.getenv("SERVER_NAME", "LEGACY OF CLT")
 
-# SOLO questi ruoli possono usare reaction_setup e testwelcome
 ALLOWED_SETUP_ROLE_IDS = [
     1505906085901504522,
     1505905849774641243,
@@ -48,7 +47,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 
 def has_setup_permission(member: discord.Member) -> bool:
-    """Permette il comando SOLO ai ruoli specificati."""
     return any(role.id in ALLOWED_SETUP_ROLE_IDS for role in member.roles)
 
 
@@ -66,7 +64,7 @@ def font(size: int, bold: bool = False):
     return ImageFont.load_default()
 
 
-def circle_crop(img: Image.Image, size: int) -> Image.Image:
+def circle_crop(img, size: int):
     img = img.convert("RGBA").resize((size, size), Image.LANCZOS)
     mask = Image.new("L", (size, size), 0)
     d = ImageDraw.Draw(mask)
@@ -76,7 +74,7 @@ def circle_crop(img: Image.Image, size: int) -> Image.Image:
     return out
 
 
-def fit_font(draw, text, max_width, start_size, min_size=24, bold=True):
+def fit_font(draw, text, max_width, start_size, min_size=26, bold=True):
     size = start_size
     while size >= min_size:
         f = font(size, bold)
@@ -87,93 +85,88 @@ def fit_font(draw, text, max_width, start_size, min_size=24, bold=True):
     return font(min_size, bold)
 
 
-def draw_shadow(draw, xy, text, fnt, fill, offset=3, shadow=(0, 0, 0, 210)):
+def draw_shadow(draw, xy, text, fnt, fill, offset=4, shadow=(0, 0, 0, 220)):
     x, y = xy
     draw.text((x + offset, y + offset), text, font=fnt, fill=shadow)
     draw.text((x, y), text, font=fnt, fill=fill)
 
 
 async def create_welcome_card(member: discord.Member) -> discord.File:
-    # Clean, modern, leggibile
     width, height = 1200, 420
 
     bg = Image.open("assets/background.png").convert("RGBA").resize((width, height))
     bg = bg.filter(ImageFilter.GaussianBlur(1))
-
-    # overlay scuro per far risaltare il testo
-    bg.alpha_composite(Image.new("RGBA", (width, height), (8, 10, 20, 115)))
+    bg.alpha_composite(Image.new("RGBA", (width, height), (8, 10, 20, 110)))
 
     base = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     base.alpha_composite(bg)
-
     d = ImageDraw.Draw(base, "RGBA")
 
-    # pannello principale singolo, pulito
-    panel = (45, 38, width - 45, height - 38)
-    d.rounded_rectangle(panel, radius=28, fill=(10, 12, 18, 110), outline=(255, 255, 255, 55), width=2)
+    # clean main panel
+    d.rounded_rectangle((45, 38, width - 45, height - 38), radius=28,
+                        fill=(8, 10, 18, 105), outline=(255, 255, 255, 60), width=2)
 
-    # barra accentata in alto
-    d.rounded_rectangle((70, 60, width - 70, 66), radius=3, fill=(45, 145, 255, 210))
-    d.rounded_rectangle((width - 280, 60, width - 70, 66), radius=3, fill=(255, 60, 60, 210))
+    # top accent
+    d.rounded_rectangle((70, 58, width - 70, 66), radius=4, fill=(55, 150, 255, 215))
+    d.rounded_rectangle((width - 290, 58, width - 70, 66), radius=4, fill=(255, 65, 65, 215))
 
-    # avatar a sinistra
+    # avatar
     avatar_asset = member.display_avatar.replace(size=512, static_format="png")
     avatar_bytes = await avatar_asset.read()
     avatar = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA")
     avatar_size = 170
     avatar = circle_crop(avatar, avatar_size)
 
-    avatar_x = 85
-    avatar_y = 122
+    avatar_x, avatar_y = 82, 122
 
     glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow, "RGBA")
-    gd.ellipse((avatar_x - 12, avatar_y - 12, avatar_x + avatar_size + 12, avatar_y + avatar_size + 12),
-               fill=(55, 135, 255, 70))
-    glow = glow.filter(ImageFilter.GaussianBlur(12))
+    gd.ellipse((avatar_x - 10, avatar_y - 10, avatar_x + avatar_size + 10, avatar_y + avatar_size + 10),
+               fill=(60, 135, 255, 70))
+    glow = glow.filter(ImageFilter.GaussianBlur(10))
     base.alpha_composite(glow)
     base.alpha_composite(avatar, (avatar_x, avatar_y))
 
     d = ImageDraw.Draw(base, "RGBA")
-    d.ellipse((avatar_x - 7, avatar_y - 7, avatar_x + avatar_size + 7, avatar_y + avatar_size + 7),
+    d.ellipse((avatar_x - 6, avatar_y - 6, avatar_x + avatar_size + 6, avatar_y + avatar_size + 6),
               outline=(255, 255, 255, 235), width=4)
-    d.arc((avatar_x - 11, avatar_y - 11, avatar_x + avatar_size + 11, avatar_y + avatar_size + 11),
-          start=90, end=270, fill=(45, 145, 255, 255), width=6)
-    d.arc((avatar_x - 11, avatar_y - 11, avatar_x + avatar_size + 11, avatar_y + avatar_size + 11),
-          start=270, end=90, fill=(255, 60, 60, 255), width=6)
+    d.arc((avatar_x - 10, avatar_y - 10, avatar_x + avatar_size + 10, avatar_y + avatar_size + 10),
+          start=90, end=270, fill=(55, 150, 255, 255), width=6)
+    d.arc((avatar_x - 10, avatar_y - 10, avatar_x + avatar_size + 10, avatar_y + avatar_size + 10),
+          start=270, end=90, fill=(255, 65, 65, 255), width=6)
 
-    # separatore sottile
-    d.line((300, 100, 300, height - 100), fill=(255, 255, 255, 35), width=2)
+    # separator
+    d.line((290, 98, 290, height - 94), fill=(255, 255, 255, 40), width=2)
 
-    # testi a destra
+    # TEXTS MUCH BIGGER
     name = member.display_name
     if len(name) > 24:
         name = name[:21] + "..."
 
-    text_x = 355
-    max_width = 720
+    text_x = 345
+    max_width = 760
 
-    title_font = font(58, True)
-    name_font = fit_font(d, f"@{name}", max_width, 68, 36, True)
-    server_font = fit_font(d, SERVER_NAME, max_width, 46, 28, True)
-    small_font = font(24, True)
-    member_font = font(28, True)
-    footer_font = font(22, True)
+    small_font = font(30, True)
+    title_font = font(72, True)
+    name_font = fit_font(d, f"@{name}", max_width, 76, 40, True)
+    server_font = fit_font(d, SERVER_NAME, max_width, 56, 32, True)
+    member_font = font(34, True)
+    footer_font = font(24, True)
 
-    draw_shadow(d, (text_x, 92), "WELCOME TO", small_font, (185, 195, 210, 255), offset=2)
-    draw_shadow(d, (text_x, 122), "BINE AI VENIT", title_font, (255, 255, 255, 255), offset=4)
-    draw_shadow(d, (text_x, 205), f"@{name}", name_font, (255, 75, 65, 255), offset=4)
-    draw_shadow(d, (text_x, 275), SERVER_NAME, server_font, (75, 165, 255, 255), offset=4)
-    draw_shadow(d, (text_x, 328), f"Member #{member.guild.member_count}", member_font, (235, 235, 240, 255), offset=3)
+    draw_shadow(d, (text_x, 88), "WELCOME TO", small_font, (190, 198, 210, 255), offset=2)
+    draw_shadow(d, (text_x, 120), "BINE AI VENIT", title_font, (255, 255, 255, 255), offset=4)
+    draw_shadow(d, (text_x, 205), f"@{name}", name_font, (255, 78, 68, 255), offset=4)
+    draw_shadow(d, (text_x, 285), SERVER_NAME, server_font, (78, 170, 255, 255), offset=4)
+    draw_shadow(d, (text_x, 336), f"Member #{member.guild.member_count}", member_font, (235, 235, 240, 255), offset=3)
 
-    # footer pulito
-    d.line((75, height - 78, width - 75, height - 78), fill=(255, 255, 255, 35), width=1)
-    draw_shadow(d, (80, height - 62), "discord.gg/legacyofclt", footer_font, (245, 245, 250, 245), offset=2)
+    # footer
+    d.line((75, height - 76, width - 75, height - 76), fill=(255, 255, 255, 40), width=1)
+    draw_shadow(d, (80, height - 60), "discord.gg/legacyofclt", footer_font, (245, 245, 250, 245), offset=2)
 
     right_text = "LEGACY OF CLT"
     bbox = d.textbbox((0, 0), right_text, font=footer_font)
     tw = bbox[2] - bbox[0]
-    draw_shadow(d, (width - 80 - tw, height - 62), right_text, footer_font, (245, 245, 250, 245), offset=2)
+    draw_shadow(d, (width - 80 - tw, height - 60), right_text, footer_font, (245, 245, 250, 245), offset=2)
 
     buf = io.BytesIO()
     base.save(buf, "PNG")
@@ -253,7 +246,7 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
             await member.remove_roles(role, reason="Reaction role removed")
             print(f"Rol eliminat: {role.name} -> {member}")
         except discord.Forbidden:
-            print("Eroare: botul nu are permisiunea Manage Roles sau rolul este troppo sus.")
+            print("Eroare: botul nu are permisiunea Manage Roles sau rolul este prea sus.")
         except Exception as e:
             print(f"Eroare la eliminarea rolului: {e}")
 
