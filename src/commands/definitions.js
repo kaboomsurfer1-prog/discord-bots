@@ -76,6 +76,38 @@ function comenziDeBaza() {
     .addStringOption((o) => o.setName('perioada').setDescription('Perioada').addChoices(...PERIOADA_CHOICES))
     .addBooleanOption((o) => o.setName('anulate').setDescription('Include și plățile anulate'));
 
+  const lista = new SlashCommandBuilder()
+    .setName('lista')
+    .setDescription('📜 Lista completă a plăților: data/ora, cine a încasat, cine a plătit, sumă, dovadă')
+    .addIntegerOption((o) => o.setName('id').setDescription('Vezi toate detaliile unei singure plăți (ex: 12)').setMinValue(1))
+    .addUserOption((o) => o.setName('membru').setDescription('Doar plățile acestui membru'))
+    .addStringOption((o) => o.setName('nume').setDescription('Doar plățile acestui nume IC').setMaxLength(64))
+    .addStringOption((o) => o.setName('tip').setDescription('Doar o anumită taxă').setAutocomplete(true))
+    .addUserOption((o) => o.setName('colector').setDescription('Doar plățile încasate de acest staff'))
+    .addStringOption((o) => o.setName('perioada').setDescription('Perioada (implicit: tot timpul)').addChoices(...PERIOADA_CHOICES))
+    .addStringOption((o) =>
+      o
+        .setName('status')
+        .setDescription('Ce plăți să arate (implicit: toate)')
+        .addChoices(
+          { name: 'Toate (inclusiv anulate)', value: 'toate' },
+          { name: 'Doar cele neanulate', value: 'active' },
+          { name: 'Încă valabile (neexpirate)', value: 'valabile' },
+          { name: 'Expirate', value: 'expirate' },
+          { name: 'Anulate', value: 'anulate' }
+        )
+    )
+    .addStringOption((o) =>
+      o
+        .setName('ordine')
+        .setDescription('Ordinea (implicit: cele mai noi)')
+        .addChoices(
+          { name: 'Cele mai noi primele', value: 'noi' },
+          { name: 'Cele mai vechi primele', value: 'vechi' },
+          { name: 'Suma cea mai mare', value: 'suma' }
+        )
+    );
+
   const anuleaza = new SlashCommandBuilder()
     .setName('anuleaza')
     .setDescription('🚫 Anulează o plată (după ID)')
@@ -248,7 +280,7 @@ function comenziDeBaza() {
         .addBooleanOption((o) => o.setName('confirmare').setDescription('Sigur? Plățile NU se șterg').setRequired(true))
     );
 
-  return [plata, verifica, istoric, anuleaza, raport, top, activi, taxe, panou, exp, ajutor, config];
+  return [plata, verifica, lista, istoric, anuleaza, raport, top, activi, taxe, panou, exp, ajutor, config];
 }
 
 const NUME_REZERVATE = new Set(comenziDeBaza().map((c) => c.name));

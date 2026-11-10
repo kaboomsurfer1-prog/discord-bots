@@ -38,6 +38,7 @@ const handlers = {
   anuleaza: (i) => anuleaza(i, ctx),
   verifica: (i) => info.verifica(i, ctx),
   istoric: (i) => info.istoric(i, ctx),
+  lista: (i) => info.lista(i, ctx),
   raport: (i) => info.raport(i, ctx),
   top: (i) => info.top(i, ctx),
   activi: (i) => info.activi(i, ctx),

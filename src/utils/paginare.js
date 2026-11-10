@@ -7,20 +7,27 @@ const d = require('./discord');
 /**
  * Afișează o listă lungă pe pagini, cu butoane ◀ ▶ (5 minute).
  */
-async function paginare(i, { cfg, titlu, linii, perPagina = 10, sus = '', ephemeral = true }) {
-  const pagini = Math.max(1, Math.ceil(linii.length / perPagina));
+async function paginare(i, { cfg, titlu, linii = null, campuri = null, perPagina = 10, sus = '', ephemeral = true }) {
+  const elemente = campuri || linii || [];
+  const pagini = Math.max(1, Math.ceil(elemente.length / perPagina));
   let pag = 0;
 
   const construieste = (dezactivat = false) => {
-    const bucata = linii.slice(pag * perPagina, (pag + 1) * perPagina);
-    const text = (sus ? `${sus}\n\n` : '') + (bucata.join('\n') || '_Nimic de afișat._');
+    const bucata = elemente.slice(pag * perPagina, (pag + 1) * perPagina);
     const e = d
       .embedBaza(cfg)
       .setTitle(f.trunc(titlu, 256))
-      .setDescription(f.trunc(text, 4096))
       .setFooter({
-        text: f.trunc(`Pagina ${pag + 1}/${pagini} • ${linii.length} rezultate${cfg.aspect.footer ? ` • ${cfg.aspect.footer}` : ''}`, 2000),
+        text: f.trunc(`Pagina ${pag + 1}/${pagini} • ${elemente.length} rezultate${cfg.aspect.footer ? ` • ${cfg.aspect.footer}` : ''}`, 2000),
       });
+    if (campuri) {
+      const text = sus || (bucata.length ? '' : '_Nimic de afișat._');
+      if (text) e.setDescription(f.trunc(text, 1500));
+      if (bucata.length) e.addFields(bucata);
+    } else {
+      const text = (sus ? `${sus}\n\n` : '') + (bucata.join('\n') || '_Nimic de afișat._');
+      e.setDescription(f.trunc(text, 4096));
+    }
     const components = [];
     if (pagini > 1) {
       components.push(

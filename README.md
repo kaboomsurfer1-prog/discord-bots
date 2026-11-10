@@ -70,7 +70,9 @@ Opzionali:
 - `/anuleaza id [motiv]` — annulla un pagamento (admin; o staff se attivi `staff_poate_anula`)
 
 **Evidenza (staff)**
-- `/istoric` — storico con filtri (membro, nome IC, taxa, staff, periodo) e pagine
+- `/lista` — lista completa di tutti i pagamenti con TUTTE le info: data e ora, chi ha pagato (Discord + nome IC + ID gioco), chi ha incassato, quantità, somma, sconto, scadenza, nota, prova, se è stato annullato e da chi. Filtri: membro, nome, taxa, staff, periodo, stato (valide/scadute/annullate), ordine
+- `/lista id:12` — dettagli completi di un singolo pagamento
+- `/istoric` — storico compatto con filtri (membro, nome IC, taxa, staff, periodo) e pagine
 - `/raport [perioada]` — totale incassato, per taxa, top colectori e top pagatori
 - `/top` — classifica pagatori o colectori
 - `/activi` — chi ha una taxa ancora valida (per le taxe con durata)

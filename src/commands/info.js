@@ -84,6 +84,120 @@ async function istoric(i, ctx) {
   });
 }
 
+/** Un câmp de embed cu TOATE detaliile unei plăți. */
+function campPlataDetaliat(cfg, p, acum = Date.now()) {
+  const anulata = p.status === 'anulat';
+  const lin = [];
+  lin.push(`👤 **Plătitor:** ${T.eticheta(p)}${p.idJoc ? ` • 🎮 ID **${p.idJoc}**` : ''}`);
+  lin.push(`🧾 **Încasat de:** <@${p.colectorId}>${p.sursa === 'cerere' && p.cerereId ? ` (din cererea #${p.cerereId})` : ''}`);
+  lin.push(`🕒 **Data:** ${f.ts(p.creat, 'F')} (${f.ts(p.creat, 'R')})`);
+  const asteptat = Math.round((p.sumaUnitara * p.cantitate * (100 - (p.reducere || 0))) / 100);
+  lin.push(
+    p.total === asteptat
+      ? `💵 **Sumă:** ${f.suma(p.sumaUnitara, cfg)} × ${p.cantitate}${p.reducere ? ` − ${p.reducere}%` : ''} = **${f.suma(p.total, cfg)}**`
+      : `💵 **Sumă:** **${f.suma(p.total, cfg)}** _(preț ${f.suma(p.sumaUnitara, cfg)} × ${p.cantitate}, sumă modificată de staff)_`
+  );
+  if (p.expira) {
+    lin.push(`⏳ **Expiră:** ${f.ts(p.expira, 'f')} ${p.expira > acum ? `(${f.ts(p.expira, 'R')})` : '— **expirată**'}`);
+  }
+  if (p.nota) lin.push(`📝 **Notă:** ${f.trunc(p.nota, 150)}`);
+  const linkuri = [];
+  if (p.dovada && f.esteUrl(p.dovada)) linkuri.push(`[📎 Dovadă](${p.dovada})`);
+  if (p.logUrl && p.logUrl !== p.dovada) linkuri.push(`[🔗 Mesaj log](${p.logUrl})`);
+  if (linkuri.length) lin.push(linkuri.join(' • '));
+  if (anulata) {
+    lin.push(
+      `🚫 **Anulată** de <@${p.anulatDe}> ${f.ts(p.anulatLa || p.creat, 'R')}${p.motivAnulare ? ` — ${f.trunc(p.motivAnulare, 100)}` : ''}`
+    );
+  }
+  return {
+    name: f.trunc(`${anulata ? '🚫 ANULATĂ • ' : ''}#${p.id} • ${p.emoji} ${p.taxaNume} ×${p.cantitate} — ${f.suma(p.total, cfg)}`, 256),
+    value: f.trunc(lin.join('\n'), 900),
+    inline: false,
+  };
+}
+
+/** /lista — toate plățile cu toate detaliile (când, cine a încasat, cine a plătit...). */
+async function lista(i, ctx) {
+  const data = ctx.store.get(i.guildId);
+  const cfg = data.config;
+  const staff = d.esteStaff(i, cfg);
+  const user = i.options.getUser('membru');
+  const nume = i.options.getString('nume')?.trim() || null;
+  const sine = user && user.id === i.user.id;
+
+  // o singură plată, după ID
+  const id = i.options.getInteger('id');
+  if (id) {
+    const p = T.gasestePlata(data, id);
+    if (!p) return d.eroare(i, `Plata #${id} nu există.`);
+    if (!staff && p.membruId !== i.user.id) return d.eroare(i, 'Poți vedea doar plățile tale.');
+    const e = d
+      .embedBaza(cfg, { culoare: p.status === 'anulat' ? '#E74C3C' : (cfg.taxe.find((t) => t.id === p.taxaId) || {}).culoare })
+      .setTitle(f.trunc(`🔎 Detalii plată #${p.id}`, 256))
+      .addFields(campPlataDetaliat(cfg, p));
+    return i.reply({ embeds: [e], flags: MessageFlags.Ephemeral, allowedMentions: d.FARA_PING });
+  }
+
+  if (!staff && !sine && (!cfg.optiuni.verificarePublica || (!user && !nume))) {
+    return d.eroare(i, 'Doar staff-ul poate vedea lista completă. Tu poți folosi `/lista membru:@tu` sau `/verifica`.');
+  }
+  const tipQ = i.options.getString('tip');
+  const taxa = tipQ ? T.gasesteTaxa(cfg, tipQ) : null;
+  if (tipQ && !taxa) return d.eroare(i, 'Taxa nu există.');
+  const per = f.perioada(i.options.getString('perioada') || 'tot', cfg.optiuni.fusOrar);
+  const colector = i.options.getUser('colector');
+  const status = i.options.getString('status') || 'toate';
+  const acum = Date.now();
+
+  let rez = T.filtreaza(data, {
+    membruId: user ? user.id : null,
+    numeIC: user ? null : nume,
+    taxaId: taxa ? taxa.id : null,
+    colectorId: colector ? colector.id : null,
+    de: per.de,
+    pana: per.pana,
+    anulate: status === 'toate' || status === 'anulate',
+  });
+  if (status === 'anulate') rez = rez.filter((p) => p.status === 'anulat');
+  if (status === 'valabile') rez = rez.filter((p) => p.expira && p.expira > acum);
+  if (status === 'expirate') rez = rez.filter((p) => p.expira && p.expira <= acum);
+
+  const ordine = i.options.getString('ordine') || 'noi';
+  if (ordine === 'vechi') rez.sort((a, b) => a.creat - b.creat || a.id - b.id);
+  else if (ordine === 'suma') rez.sort((a, b) => b.total - a.total || b.creat - a.creat);
+
+  const valide = rez.filter((p) => p.status !== 'anulat');
+  const s = T.statistici(valide);
+  const platitori = Object.keys(s.perPlatitor).length;
+  const perTaxa = Object.values(s.perTaxa)
+    .sort((a, b) => b.total - a.total)
+    .map((t) => `${t.emoji} ${t.nume}: **${f.suma(t.total, cfg)}** (${t.numar})`)
+    .join(' • ');
+  const filtre = [
+    user ? `👤 ${numeAfisat(i)}` : nume ? `🪪 ${nume}` : null,
+    taxa ? `${taxa.emoji} ${taxa.nume}` : null,
+    colector ? `🧾 <@${colector.id}>` : null,
+    `📅 ${per.eticheta}`,
+    status !== 'toate' ? `📌 ${status}` : null,
+  ].filter(Boolean);
+  const sus = [
+    filtre.join(' • '),
+    `💰 Total: **${f.suma(s.total, cfg)}** • 🧾 **${s.numar}** plăți • 👥 **${platitori}** plătitori${rez.length !== valide.length ? ` • 🚫 ${rez.length - valide.length} anulate` : ''}`,
+    perTaxa,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  await paginare(i, {
+    cfg,
+    titlu: '📜 Lista plăților',
+    sus,
+    campuri: rez.map((p) => campPlataDetaliat(cfg, p, acum)),
+    perPagina: 5,
+  });
+}
+
 /** /raport */
 async function raport(i, ctx) {
   const data = ctx.store.get(i.guildId);
@@ -236,7 +350,9 @@ async function ajutor(i, ctx) {
       {
         name: '📊 Evidență (staff)',
         value: [
-          '`/istoric` — istoricul plăților, cu filtre',
+          '`/lista` — toate plățile cu toate detaliile (data, ora, cine a încasat, cine a plătit, dovadă)',
+          '`/lista id:12` — detaliile complete ale unei plăți',
+          '`/istoric` — istoricul plăților, compact',
           '`/raport [perioada]` — banii încasați',
           '`/top` — clasament plătitori / colectori',
           '`/activi` — cine are taxe active',
@@ -263,4 +379,4 @@ async function ajutor(i, ctx) {
   await i.reply({ embeds: [e], flags: MessageFlags.Ephemeral });
 }
 
-module.exports = { verifica, istoric, raport, top, activi, taxe, exporta, ajutor, liniePlata };
+module.exports = { verifica, istoric, lista, raport, top, activi, taxe, exporta, ajutor, liniePlata, campPlataDetaliat };
