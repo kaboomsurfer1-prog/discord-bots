@@ -14,7 +14,7 @@ const f = require('../utils/format');
 const d = require('../utils/discord');
 const T = require('../services/taxe');
 const UI = require('../services/ui');
-const { OPTIUNI, MESAJE_INFO, DEFAULT_CONFIG, DEFAULT_MESAJE, PLACEHOLDERS } = require('../config/defaults');
+const { OPTIUNI, MESAJE_INFO, DEFAULT_CONFIG, DEFAULT_MESAJE, DEFAULT_TAXE, PLACEHOLDERS } = require('../config/defaults');
 const { normalizeaza, clone } = require('../storage');
 const { comandaValida, NUME_REZERVATE } = require('./definitions');
 
@@ -233,7 +233,24 @@ async function taxaSterge(i, ctx, cfg) {
   await i.deferReply({ flags: MessageFlags.Ephemeral });
   await dupaModificareTaxe(i, ctx);
   await logConfig(i, cfg, `🗑️ Taxă ștearsă: ${t.emoji} **${t.nume}**`);
-  await d.succes(i, `Taxa ${t.emoji} **${t.nume}** a fost ștearsă. Plățile vechi rămân în istoric.`);
+  await d.succes(
+    i,
+    `Tipul de taxă ${t.emoji} **${t.nume}** a fost șters (plățile vechi rămân în istoric).\n` +
+      'ℹ️ Pentru a șterge o **plată** folosește `/sterge plata`. Taxele implicite se pot readăuga cu `/config taxa restaureaza`.'
+  );
+}
+
+async function taxaRestaureaza(i, ctx, cfg) {
+  const lipsa = DEFAULT_TAXE.filter((t) => !cfg.taxe.some((x) => x.id === t.id));
+  if (!lipsa.length) return d.eroare(i, 'Taxele implicite există deja. Le poți modifica cu `/config taxa editeaza`.');
+  for (const t of clone(lipsa)) {
+    if (cfg.taxe.some((x) => x.comanda === t.comanda)) t.comanda = null;
+    cfg.taxe.push(t);
+  }
+  await i.deferReply({ flags: MessageFlags.Ephemeral });
+  await dupaModificareTaxe(i, ctx);
+  await logConfig(i, cfg, `♻️ Taxe implicite readăugate: ${lipsa.map((t) => `${t.emoji} ${t.nume}`).join(', ')}`);
+  await d.succes(i, `Am readăugat: ${lipsa.map((t) => `${t.emoji} **${t.nume}** (${f.suma(t.suma, cfg)})`).join(', ')}. Comenzile rapide apar în câteva secunde.`);
 }
 
 async function vezi(i, ctx, cfg) {
@@ -571,6 +588,7 @@ async function config(i, ctx) {
     if (sub === 'adauga') return taxaAdauga(i, ctx, cfg);
     if (sub === 'editeaza') return taxaEditeaza(i, ctx, cfg);
     if (sub === 'sterge') return taxaSterge(i, ctx, cfg);
+    if (sub === 'restaureaza') return taxaRestaureaza(i, ctx, cfg);
   }
   const h = { vezi, canal, rol, reducere, moneda, aspect, optiune, mesaj, export: exportConfig, import: importConfig, reset }[sub];
   if (!h) return d.eroare(i, 'Subcomandă necunoscută.');

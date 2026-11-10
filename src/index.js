@@ -3,7 +3,8 @@
 require('dotenv').config();
 
 const { Client, GatewayIntentBits, Events, ActivityType } = require('discord.js');
-const { creeazaStore } = require('./storage');
+const { creeazaStore, clone } = require('./storage');
+const { DEFAULT_TAXE } = require('./config/defaults');
 const { comenziPentru } = require('./commands/definitions');
 const { plata, anuleaza } = require('./commands/plata');
 const info = require('./commands/info');
@@ -149,6 +150,17 @@ client.once(Events.ClientReady, async (c) => {
   });
   // comenzile sunt pe fiecare server (apar instant); ștergem eventualele comenzi globale vechi
   await c.application.commands.set([]).catch(() => {});
+  // reparare unică: dacă toate taxele au fost șterse din greșeală, le readăugăm pe cele implicite
+  for (const guild of c.guilds.cache.values()) {
+    const cfg = store.config(guild.id);
+    cfg.stare.seeduri = cfg.stare.seeduri || {};
+    if (!cfg.taxe.length && !cfg.stare.seeduri['restaurare-taxe-1']) {
+      cfg.taxe = clone(DEFAULT_TAXE);
+      cfg.stare.seeduri['restaurare-taxe-1'] = true;
+      store.save(guild.id);
+      console.log(`   • ${guild.name}: nu exista nicio taxă — am readăugat Taxa Vamă și Taxa Droguri`);
+    }
+  }
   for (const guild of c.guilds.cache.values()) {
     try {
       const n = await inregistreazaComenzi(guild);

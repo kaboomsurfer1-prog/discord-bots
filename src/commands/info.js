@@ -381,7 +381,7 @@ async function ajutor(i, ctx) {
         name: '⚙️ Configurare (admin)',
         value: [
           '`/config vezi` — toată configurația',
-          '`/config taxa adauga|editeaza|sterge` — taxe, prețuri, durate, comenzi rapide',
+          '`/config taxa adauga|editeaza|sterge|restaureaza` — tipuri de taxe, prețuri, durate, comenzi rapide',
           '`/config canal` • `/config rol` • `/config reducere`',
           '`/config moneda` • `/config aspect` • `/config optiune`',
           '`/config mesaj` — editează orice mesaj al botului',

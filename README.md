@@ -90,7 +90,8 @@ Opzionali:
 - Pannello: bottoni per inviare una richiesta di pagamento (nome IC, ID, quantità, link screenshot) → lo staff approva/rifiuta con un click → il giocatore riceve un DM
 
 **Configurazione (admin = Manage Server o ruolo admin)**
-- `/config vezi | taxa adauga/editeaza/sterge | canal | rol | reducere | moneda | aspect | optiune | mesaj | export | import | reset`
+- `/config vezi | taxa adauga/editeaza/sterge/restaureaza | canal | rol | reducere | moneda | aspect | optiune | mesaj | export | import | reset`
+- ⚠️ `/config taxa sterge` cancella un **tipo di taxa** (e il suo comando, es. `/vama`), NON un pagamento. Per i pagamenti: `/sterge plata`. Se cancelli per sbaglio le taxe predefinite: `/config taxa restaureaza`.
 - `/config export` scarica tutta la config in JSON, la puoi modificare a mano e ricaricarla con `/config import` (anche su un altro server).
 
 ### Opzioni (`/config optiune`)

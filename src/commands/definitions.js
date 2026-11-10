@@ -223,9 +223,12 @@ function comenziDeBaza() {
         .addSubcommand((s) =>
           s
             .setName('sterge')
-            .setDescription('Șterge o taxă (plățile vechi rămân în istoric)')
-            .addStringOption((o) => o.setName('taxa').setDescription('Taxa de șters').setRequired(true).setAutocomplete(true))
-            .addBooleanOption((o) => o.setName('confirmare').setDescription('Sigur?').setRequired(true))
+            .setDescription('⚠️ Șterge un TIP de taxă (ex: toată Taxa Vamă), NU o plată! Pentru plăți: /sterge plata')
+            .addStringOption((o) => o.setName('taxa').setDescription('Tipul de taxă de șters (dispare și comanda ei)').setRequired(true).setAutocomplete(true))
+            .addBooleanOption((o) => o.setName('confirmare').setDescription('Sigur? Dispare și comanda rapidă (ex: /vama)').setRequired(true))
+        )
+        .addSubcommand((s) =>
+          s.setName('restaureaza').setDescription('Readaugă taxele implicite lipsă (Taxă Vamă + Taxă Droguri, 30.000)')
         )
     )
     .addSubcommand((s) =>
