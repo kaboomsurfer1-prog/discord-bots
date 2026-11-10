@@ -1,0 +1,18 @@
+{
+  "name": "cayo-perico-taxe-bot",
+  "version": "1.0.0",
+  "description": "Bot Discord (RO) pentru taxele Insulei Cayo Perico - GTA V RP",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "pg": "^8.13.1"
+  }
+}
