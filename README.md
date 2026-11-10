@@ -4,8 +4,10 @@ Bot Discord per gestire le taxe dell'isola di Cayo Perico:
 
 | Taxa | Prezzo predefinito | Comando rapido |
 |---|---|---|
-| 🛃 Taxă Vamă | $30.000 | `/vama` |
-| 💊 Taxă Droguri | $30.000 | `/droguri` |
+| 🛃 Taxă Vamă | $30.000 | `/vama id:123` |
+| 💊 Taxă Droguri | $30.000 | `/droguri id:123` |
+
+Basta scrivere l'**ID del giocatore** (obbligatorio). Il bot suggerisce gli ID già visti con il nome IC, e se un ID ha già pagato riprende in automatico nome e utente Discord.
 
 Tutto è modificabile da Discord: prezzi, nomi, emoji, durata, nuove taxe, messaggi, colori, canali, ruoli, sconti, report automatici.
 
@@ -64,14 +66,14 @@ Opzionali:
 
 ## 📋 Comenzi
 
-**Incasso (staff)**
-- `/vama membru:@x` / `/droguri membru:@x` — incasso rapido (uno per ogni taxa)
-- `/plata tip membru|nume [cantitate] [suma] [dovada] [nota]` — incasso completo (screenshot come prova, nome IC per chi non è su Discord, somma diversa, quantità)
-- `/anuleaza id [motiv]` — annulla un pagamento (admin; o staff se attivi `staff_poate_anula`)
+**Incasso (staff)** — solo nel canale impostato con `/config canal tip:Comenzi` (o con la variabile `CANAL_COMENZI`)
+- `/vama id:123` / `/droguri id:123` — incasso rapido (uno per ogni taxa)
+- `/plata tip id [membru] [nume] [cantitate] [suma] [dovada] [nota]` — incasso completo
+- `/anuleaza plata:12 [motiv]` — annulla un pagamento (admin; o staff se attivi `staff_poate_anula`)
 
 **Evidenza (staff)**
 - `/lista` — lista completa di tutti i pagamenti con TUTTE le info: data e ora, chi ha pagato (Discord + nome IC + ID gioco), chi ha incassato, quantità, somma, sconto, scadenza, nota, prova, se è stato annullato e da chi. Filtri: membro, nome, taxa, staff, periodo, stato (valide/scadute/annullate), ordine
-- `/lista id:12` — dettagli completi di un singolo pagamento
+- `/lista plata:12` — dettagli completi di un singolo pagamento • `/lista id:123` — tutti i pagamenti di un ID
 - `/istoric` — storico compatto con filtri (membro, nome IC, taxa, staff, periodo) e pagine
 - `/raport [perioada]` — totale incassato, per taxa, top colectori e top pagatori
 - `/top` — classifica pagatori o colectori

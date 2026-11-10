@@ -13,14 +13,22 @@ async function plata(i, ctx, taxaFortata = null) {
   if (!d.esteStaff(i, cfg)) {
     return d.eroare(i, 'Nu ai permisiunea să încasezi taxe. Un admin poate seta rolurile staff cu `/config rol`.');
   }
+  const canal = cfg.canale.comenzi;
+  if (canal && i.channelId !== canal && !(i.channel && i.channel.parentId === canal)) {
+    return d.eroare(i, `Comenzile de încasare se folosesc doar în canalul <#${canal}>.`);
+  }
   const taxa = T.gasesteTaxa(cfg, taxaFortata || i.options.getString('tip'));
   if (!taxa) return d.eroare(i, 'Taxa nu există. Vezi lista cu `/taxe`.');
   if (!taxa.activa) return d.eroare(i, `Taxa **${taxa.nume}** este dezactivată.`);
 
+  const idJoc = (i.options.getString('id') || '').trim();
+  if (!idJoc) return d.eroare(i, 'Scrie **ID-ul** jucătorului din joc.');
   const user = i.options.getUser('membru');
-  const numeIC = i.options.getString('nume')?.trim() || null;
-  if (!user && !numeIC) return d.eroare(i, 'Specifică un **membru** (Discord) sau un **nume** IC.');
   if (user && user.bot) return d.eroare(i, 'Nu poți înregistra plăți pentru boți.');
+  // completăm automat numele / membrul din plățile anterioare cu același ID
+  const cunoscut = T.jucatorCunoscut(ctx.store.get(i.guildId), idJoc);
+  const numeIC = i.options.getString('nume')?.trim() || (cunoscut && cunoscut.numeIC) || null;
+  const membruId = user ? user.id : (cunoscut && cunoscut.membruId) || null;
 
   const cantitate = i.options.getInteger('cantitate') ?? 1;
   if (cantitate > cfg.optiuni.cantitateMaxima) {
@@ -38,15 +46,19 @@ async function plata(i, ctx, taxaFortata = null) {
   }
 
   const atasament = i.options.getAttachment('dovada');
-  const roluri = d.rolurileMembrului(i.options.getMember('membru'));
-
   await i.deferReply(cfg.optiuni.confirmarePublica ? {} : { flags: MessageFlags.Ephemeral });
+
+  let roluri = d.rolurileMembrului(i.options.getMember('membru'));
+  if (!user && membruId) {
+    const m = await i.guild.members.fetch(membruId).catch(() => null);
+    roluri = d.rolurileMembrului(m);
+  }
 
   const p = T.inregistreazaPlata(store, i.guildId, {
     taxa,
-    membruId: user ? user.id : null,
+    membruId,
     numeIC,
-    idJoc: i.options.getString('id_joc'),
+    idJoc,
     cantitate,
     sumaOverride,
     roluri,
@@ -69,7 +81,7 @@ async function anuleaza(i, ctx) {
   const poate = d.esteAdmin(i, cfg) || (cfg.optiuni.staffPoateAnula && d.esteStaff(i, cfg));
   if (!poate) return d.eroare(i, 'Doar adminii pot anula plăți (sau staff-ul, dacă e activă opțiunea `staff_poate_anula`).');
 
-  const id = i.options.getInteger('id', true);
+  const id = i.options.getInteger('plata', true);
   const motiv = i.options.getString('motiv');
   const r = T.anuleazaPlata(store, i.guildId, id, i.user.id, motiv);
   if (r.eroare) return d.eroare(i, r.eroare);

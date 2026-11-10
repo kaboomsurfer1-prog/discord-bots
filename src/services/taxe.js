@@ -22,19 +22,41 @@ function gasesteTaxa(cfg, q) {
   );
 }
 
+const norm = (s) => String(s || '').trim().toLowerCase();
+
+/** Același jucător? Prioritate: membru Discord → ID din joc → nume IC. */
 function acelasiPlatitor(p, cine) {
   if (cine.membruId && p.membruId) return p.membruId === cine.membruId;
-  if (cine.numeIC && p.numeIC) return p.numeIC.toLowerCase() === cine.numeIC.toLowerCase();
+  if (cine.idJoc && p.idJoc) return norm(p.idJoc) === norm(cine.idJoc);
+  if (cine.numeIC && p.numeIC) return norm(p.numeIC) === norm(cine.numeIC);
   return false;
 }
 
 function cheiePlatitor(p) {
-  return p.membruId ? `m:${p.membruId}` : `n:${String(p.numeIC || '').toLowerCase()}`;
+  if (p.membruId) return `m:${p.membruId}`;
+  if (p.idJoc) return `j:${norm(p.idJoc)}`;
+  return `n:${norm(p.numeIC)}`;
 }
 
 function eticheta(p) {
-  if (p.membruId) return `<@${p.membruId}>${p.numeIC ? ` (${p.numeIC})` : ''}`;
-  return `**${p.numeIC || 'Necunoscut'}**`;
+  const id = p.idJoc ? `ID ${p.idJoc}` : null;
+  if (p.membruId) return `<@${p.membruId}>${p.numeIC || id ? ` (${[p.numeIC, id].filter(Boolean).join(' • ')})` : ''}`;
+  if (p.numeIC) return `**${p.numeIC}**${id ? ` (${id})` : ''}`;
+  if (id) return `**${id}**`;
+  return '**Necunoscut**';
+}
+
+/** Ultimele date cunoscute pentru un ID din joc (nume IC, membru Discord). */
+function jucatorCunoscut(data, idJoc) {
+  if (!idJoc) return null;
+  let ult = null;
+  for (const p of data.plati) {
+    if (p.idJoc && norm(p.idJoc) === norm(idJoc) && (!ult || p.creat > ult.creat)) ult = p;
+  }
+  if (!ult) return null;
+  const cuNume = data.plati.filter((p) => p.idJoc && norm(p.idJoc) === norm(idJoc) && p.numeIC).sort((a, b) => b.creat - a.creat)[0];
+  const cuMembru = data.plati.filter((p) => p.idJoc && norm(p.idJoc) === norm(idJoc) && p.membruId).sort((a, b) => b.creat - a.creat)[0];
+  return { numeIC: cuNume ? cuNume.numeIC : null, membruId: cuMembru ? cuMembru.membruId : null, ultima: ult };
 }
 
 /** Cea mai mare reducere dintre rolurile membrului. */
@@ -76,7 +98,7 @@ function inregistreazaPlata(store, gid, o) {
   const cfg = data.config;
   const acum = o.acum || Date.now();
   const cantitate = Math.max(1, Math.floor(o.cantitate || 1));
-  const cine = { membruId: o.membruId || null, numeIC: o.numeIC || null };
+  const cine = { membruId: o.membruId || null, numeIC: o.numeIC || null, idJoc: o.idJoc ? String(o.idJoc).trim() : null };
   const calc = calculeaza(cfg, o.taxa, { roluri: o.roluri || [], cantitate, sumaOverride: o.sumaOverride });
   const plata = {
     id: store.nextId(gid, 'plata'),
@@ -89,7 +111,7 @@ function inregistreazaPlata(store, gid, o) {
     total: calc.total,
     membruId: cine.membruId,
     numeIC: cine.numeIC,
-    idJoc: o.idJoc || null,
+    idJoc: cine.idJoc,
     colectorId: o.colectorId,
     nota: o.nota || null,
     dovada: o.dovada || null,
@@ -142,7 +164,7 @@ function filtreaza(data, flt = {}) {
     if (flt.colectorId && p.colectorId !== flt.colectorId) return false;
     if (flt.de && p.creat < flt.de) return false;
     if (flt.pana && p.creat >= flt.pana) return false;
-    if ((flt.membruId || flt.numeIC) && !acelasiPlatitor(p, { membruId: flt.membruId, numeIC: flt.numeIC })) return false;
+    if ((flt.membruId || flt.numeIC || flt.idJoc) && !acelasiPlatitor(p, { membruId: flt.membruId, numeIC: flt.numeIC, idJoc: flt.idJoc })) return false;
     return true;
   });
   return out.sort((a, b) => b.creat - a.creat || b.id - a.id);
@@ -250,6 +272,7 @@ module.exports = {
   acelasiPlatitor,
   cheiePlatitor,
   eticheta,
+  jucatorCunoscut,
   reducere,
   calculeaza,
   ultimaExpirare,

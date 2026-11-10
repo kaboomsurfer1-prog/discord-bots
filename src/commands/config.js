@@ -253,6 +253,7 @@ async function vezi(i, ctx, cfg) {
     .setColor(culoare)
     .setTitle('📌 Canale, roluri, reduceri')
     .addFields(
+      UI.camp('Comenzi (încasări)', canal(c.comenzi)),
       UI.camp('Log', canal(c.log)),
       UI.camp('Cereri', canal(c.cereri)),
       UI.camp('Raport', canal(c.raport)),

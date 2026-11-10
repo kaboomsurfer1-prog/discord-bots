@@ -27,9 +27,10 @@ async function verifica(i, ctx) {
   const cfg = data.config;
   const user = i.options.getUser('membru');
   const nume = i.options.getString('nume')?.trim() || null;
+  const idJoc = i.options.getString('id')?.trim() || null;
   let cine;
   let titlu;
-  if (!user && !nume) {
+  if (!user && !nume && !idJoc) {
     cine = { membruId: i.user.id };
     titlu = (i.member && i.member.displayName) || i.user.globalName || i.user.username;
   } else {
@@ -37,8 +38,9 @@ async function verifica(i, ctx) {
     if (!sine && !d.esteStaff(i, cfg) && !cfg.optiuni.verificarePublica) {
       return d.eroare(i, 'Poți verifica doar propriile taxe (folosește `/verifica` fără nimic).');
     }
-    cine = { membruId: user ? user.id : null, numeIC: nume };
-    titlu = user ? numeAfisat(i) : nume;
+    cine = { membruId: user ? user.id : null, numeIC: nume, idJoc };
+    const cunoscut = idJoc ? T.jucatorCunoscut(data, idJoc) : null;
+    titlu = user ? numeAfisat(i) : idJoc ? `ID ${idJoc}${(cunoscut && cunoscut.numeIC) || nume ? ` (${nume || cunoscut.numeIC})` : ''}` : nume;
   }
   await i.reply({ embeds: [UI.embedStare(cfg, data, cine, titlu)], flags: MessageFlags.Ephemeral, allowedMentions: d.FARA_PING });
 }
@@ -50,8 +52,9 @@ async function istoric(i, ctx) {
   const staff = d.esteStaff(i, cfg);
   const user = i.options.getUser('membru');
   const nume = i.options.getString('nume')?.trim() || null;
+  const idJoc = i.options.getString('id')?.trim() || null;
   const sine = user && user.id === i.user.id;
-  if (!staff && !sine && (!cfg.optiuni.verificarePublica || (!user && !nume))) {
+  if (!staff && !sine && (!cfg.optiuni.verificarePublica || (!user && !nume && !idJoc))) {
     return d.eroare(i, 'Doar staff-ul poate vedea istoricul complet. Tu poți folosi `/istoric membru:@tu` sau `/verifica`.');
   }
   const tipQ = i.options.getString('tip');
@@ -61,7 +64,8 @@ async function istoric(i, ctx) {
   const colector = i.options.getUser('colector');
   const lista = T.filtreaza(data, {
     membruId: user ? user.id : null,
-    numeIC: user ? null : nume,
+    idJoc: user ? null : idJoc,
+    numeIC: user || idJoc ? null : nume,
     taxaId: taxa ? taxa.id : null,
     colectorId: colector ? colector.id : null,
     de: per.de,
@@ -70,7 +74,7 @@ async function istoric(i, ctx) {
   });
   const total = lista.filter((p) => p.status !== 'anulat').reduce((s, p) => s + p.total, 0);
   const filtre = [
-    user ? `👤 ${numeAfisat(i)}` : nume ? `🪪 ${nume}` : null,
+    user ? `👤 ${numeAfisat(i)}` : idJoc ? `🎮 ID ${idJoc}` : nume ? `🪪 ${nume}` : null,
     taxa ? `${taxa.emoji} ${taxa.nume}` : null,
     colector ? `🧾 colector <@${colector.id}>` : null,
     `📅 ${per.eticheta}`,
@@ -88,7 +92,7 @@ async function istoric(i, ctx) {
 function campPlataDetaliat(cfg, p, acum = Date.now()) {
   const anulata = p.status === 'anulat';
   const lin = [];
-  lin.push(`👤 **Plătitor:** ${T.eticheta(p)}${p.idJoc ? ` • 🎮 ID **${p.idJoc}**` : ''}`);
+  lin.push(`👤 **Plătitor:** ${T.eticheta(p)}`);
   lin.push(`🧾 **Încasat de:** <@${p.colectorId}>${p.sursa === 'cerere' && p.cerereId ? ` (din cererea #${p.cerereId})` : ''}`);
   lin.push(`🕒 **Data:** ${f.ts(p.creat, 'F')} (${f.ts(p.creat, 'R')})`);
   const asteptat = Math.round((p.sumaUnitara * p.cantitate * (100 - (p.reducere || 0))) / 100);
@@ -124,10 +128,11 @@ async function lista(i, ctx) {
   const staff = d.esteStaff(i, cfg);
   const user = i.options.getUser('membru');
   const nume = i.options.getString('nume')?.trim() || null;
+  const idJoc = i.options.getString('id')?.trim() || null;
   const sine = user && user.id === i.user.id;
 
-  // o singură plată, după ID
-  const id = i.options.getInteger('id');
+  // o singură plată, după numărul ei
+  const id = i.options.getInteger('plata');
   if (id) {
     const p = T.gasestePlata(data, id);
     if (!p) return d.eroare(i, `Plata #${id} nu există.`);
@@ -139,7 +144,7 @@ async function lista(i, ctx) {
     return i.reply({ embeds: [e], flags: MessageFlags.Ephemeral, allowedMentions: d.FARA_PING });
   }
 
-  if (!staff && !sine && (!cfg.optiuni.verificarePublica || (!user && !nume))) {
+  if (!staff && !sine && (!cfg.optiuni.verificarePublica || (!user && !nume && !idJoc))) {
     return d.eroare(i, 'Doar staff-ul poate vedea lista completă. Tu poți folosi `/lista membru:@tu` sau `/verifica`.');
   }
   const tipQ = i.options.getString('tip');
@@ -152,7 +157,8 @@ async function lista(i, ctx) {
 
   let rez = T.filtreaza(data, {
     membruId: user ? user.id : null,
-    numeIC: user ? null : nume,
+    idJoc: user ? null : idJoc,
+    numeIC: user || idJoc ? null : nume,
     taxaId: taxa ? taxa.id : null,
     colectorId: colector ? colector.id : null,
     de: per.de,
@@ -175,7 +181,7 @@ async function lista(i, ctx) {
     .map((t) => `${t.emoji} ${t.nume}: **${f.suma(t.total, cfg)}** (${t.numar})`)
     .join(' • ');
   const filtre = [
-    user ? `👤 ${numeAfisat(i)}` : nume ? `🪪 ${nume}` : null,
+    user ? `👤 ${numeAfisat(i)}` : idJoc ? `🎮 ID ${idJoc}` : nume ? `🪪 ${nume}` : null,
     taxa ? `${taxa.emoji} ${taxa.nume}` : null,
     colector ? `🧾 <@${colector.id}>` : null,
     `📅 ${per.eticheta}`,
@@ -340,9 +346,10 @@ async function ajutor(i, ctx) {
         name: '💰 Încasare (staff)',
         value: f.trunc(
           [
-            '`/plata tip membru|nume [cantitate] [suma] [dovada] [nota]` — înregistrează o plată',
-            ...rapide.map((t) => `\`/${t.comanda} membru|nume\` — ${t.emoji} ${t.nume} (${f.suma(t.suma, cfg)})`),
-            '`/anuleaza id [motiv]` — anulează o plată',
+            ...rapide.map((t) => `\`/${t.comanda} id\` — ${t.emoji} ${t.nume} (${f.suma(t.suma, cfg)})`),
+            '`/plata tip id [membru] [nume] [cantitate] [suma] [dovada] [nota]` — încasare completă',
+            '`/anuleaza plata [motiv]` — anulează o plată',
+            ...(cfg.canale.comenzi ? [`📍 Încasările se fac doar în <#${cfg.canale.comenzi}>`] : []),
           ].join('\n'),
           1024
         ),
@@ -351,7 +358,7 @@ async function ajutor(i, ctx) {
         name: '📊 Evidență (staff)',
         value: [
           '`/lista` — toate plățile cu toate detaliile (data, ora, cine a încasat, cine a plătit, dovadă)',
-          '`/lista id:12` — detaliile complete ale unei plăți',
+          '`/lista plata:12` — detaliile complete ale unei plăți • `/lista id:123` — plățile unui ID',
           '`/istoric` — istoricul plăților, compact',
           '`/raport [perioada]` — banii încasați',
           '`/top` — clasament plătitori / colectori',

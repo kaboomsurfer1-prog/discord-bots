@@ -67,7 +67,6 @@ function embedPlata(cfg, p, guild, opt = {}) {
     camp('🧾 Încasat de', p.colectorId ? `<@${p.colectorId}>` : '—'),
     camp('🆔 Plată', `#${p.id}${p.cerereId ? ` (cerere #${p.cerereId})` : ''}`),
   ];
-  if (p.idJoc) campuri.push(camp('🎮 ID joc', p.idJoc));
   if (p.expira) campuri.push(camp('⏳ Expiră', `${f.ts(p.expira, 'f')}\n${f.ts(p.expira, 'R')}`));
   if (p.nota) campuri.push(camp('📝 Notă', p.nota, false));
   if (p.dovada && !opt.imagine) campuri.push(camp('📎 Dovadă', p.dovada, false));

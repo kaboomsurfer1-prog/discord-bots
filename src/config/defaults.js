@@ -79,6 +79,7 @@ const DEFAULT_CONFIG = {
     separator: '.', // separator mii
   },
   canale: {
+    comenzi: null, // dacă e setat, /plata și comenzile rapide merg doar aici
     log: null, // toate plățile/anulările/modificările
     cereri: null, // cererile jucătorilor (aprobare/respingere)
     raport: null, // rapoartele automate

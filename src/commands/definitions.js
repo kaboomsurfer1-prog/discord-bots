@@ -12,9 +12,11 @@ function optiuniPlata(b, cuTip) {
     b.addStringOption((o) => o.setName('tip').setDescription('Taxa încasată').setRequired(true).setAutocomplete(true));
   }
   return b
-    .addUserOption((o) => o.setName('membru').setDescription('Membrul Discord care plătește'))
-    .addStringOption((o) => o.setName('nume').setDescription('Numele IC al jucătorului (dacă nu e pe Discord)').setMaxLength(64))
-    .addStringOption((o) => o.setName('id_joc').setDescription('ID-ul jucătorului în joc').setMaxLength(32))
+    .addStringOption((o) =>
+      o.setName('id').setDescription('ID-ul jucătorului din joc').setRequired(true).setMaxLength(32).setAutocomplete(true)
+    )
+    .addUserOption((o) => o.setName('membru').setDescription('Membrul Discord (opțional, pentru DM / rol)'))
+    .addStringOption((o) => o.setName('nume').setDescription('Numele IC al jucătorului (opțional)').setMaxLength(64))
     .addIntegerOption((o) =>
       o.setName('cantitate').setDescription('De câte ori plătește taxa (implicit 1)').setMinValue(1).setMaxValue(1000)
     )
@@ -63,12 +65,14 @@ function comenziDeBaza() {
   const verifica = new SlashCommandBuilder()
     .setName('verifica')
     .setDescription('📋 Verifică taxele unui jucător (sau ale tale)')
+    .addStringOption((o) => o.setName('id').setDescription('ID-ul jucătorului din joc').setMaxLength(32).setAutocomplete(true))
     .addUserOption((o) => o.setName('membru').setDescription('Membrul Discord'))
     .addStringOption((o) => o.setName('nume').setDescription('Numele IC').setMaxLength(64));
 
   const istoric = new SlashCommandBuilder()
     .setName('istoric')
     .setDescription('🕘 Istoricul plăților (cu filtre)')
+    .addStringOption((o) => o.setName('id').setDescription('Doar plățile acestui ID din joc').setMaxLength(32).setAutocomplete(true))
     .addUserOption((o) => o.setName('membru').setDescription('Doar plățile acestui membru'))
     .addStringOption((o) => o.setName('nume').setDescription('Doar plățile acestui nume IC').setMaxLength(64))
     .addStringOption((o) => o.setName('tip').setDescription('Doar o anumită taxă').setAutocomplete(true))
@@ -79,7 +83,8 @@ function comenziDeBaza() {
   const lista = new SlashCommandBuilder()
     .setName('lista')
     .setDescription('📜 Lista completă a plăților: data/ora, cine a încasat, cine a plătit, sumă, dovadă')
-    .addIntegerOption((o) => o.setName('id').setDescription('Vezi toate detaliile unei singure plăți (ex: 12)').setMinValue(1))
+    .addStringOption((o) => o.setName('id').setDescription('Doar plățile acestui ID din joc').setMaxLength(32).setAutocomplete(true))
+    .addIntegerOption((o) => o.setName('plata').setDescription('Vezi toate detaliile unei singure plăți (nr. plății, ex: 12)').setMinValue(1))
     .addUserOption((o) => o.setName('membru').setDescription('Doar plățile acestui membru'))
     .addStringOption((o) => o.setName('nume').setDescription('Doar plățile acestui nume IC').setMaxLength(64))
     .addStringOption((o) => o.setName('tip').setDescription('Doar o anumită taxă').setAutocomplete(true))
@@ -111,7 +116,7 @@ function comenziDeBaza() {
   const anuleaza = new SlashCommandBuilder()
     .setName('anuleaza')
     .setDescription('🚫 Anulează o plată (după ID)')
-    .addIntegerOption((o) => o.setName('id').setDescription('ID-ul plății (ex: 12)').setRequired(true).setMinValue(1))
+    .addIntegerOption((o) => o.setName('plata').setDescription('Numărul plății (ex: 12 — îl vezi în /lista)').setRequired(true).setMinValue(1))
     .addStringOption((o) => o.setName('motiv').setDescription('Motivul anulării').setMaxLength(300));
 
   const raport = new SlashCommandBuilder()
@@ -185,6 +190,7 @@ function comenziDeBaza() {
             .setDescription('Ce canal')
             .setRequired(true)
             .addChoices(
+              { name: 'Comenzi (singurul canal unde merg /vama, /droguri, /plata)', value: 'comenzi' },
               { name: 'Log (toate plățile și modificările)', value: 'log' },
               { name: 'Cereri (aprobare plăți jucători)', value: 'cereri' },
               { name: 'Raport (rapoarte automate)', value: 'raport' },

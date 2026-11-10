@@ -49,9 +49,32 @@ const handlers = {
   panou: (i) => panou(i, ctx),
 };
 
+/** Sugestii pentru ID-ul din joc: ID-urile care au mai plătit (cu numele IC). */
+function autocompleteId(i, focus) {
+  const data = store.get(i.guildId);
+  const brut = String(focus.value || '').trim();
+  const q = brut.toLowerCase();
+  const harta = new Map();
+  for (const p of data.plati) {
+    if (!p.idJoc) continue;
+    const k = p.idJoc.toLowerCase();
+    const ex = harta.get(k);
+    if (!ex || p.creat > ex.creat) harta.set(k, { ...p, numeIC: p.numeIC || (ex && ex.numeIC) || null });
+    else if (!ex.numeIC && p.numeIC) ex.numeIC = p.numeIC;
+  }
+  const rez = [...harta.values()]
+    .filter((p) => !q || p.idJoc.toLowerCase().includes(q) || (p.numeIC || '').toLowerCase().includes(q))
+    .sort((a, b) => b.creat - a.creat)
+    .slice(0, 24)
+    .map((p) => ({ name: f.trunc(`${p.idJoc}${p.numeIC ? ` — ${p.numeIC}` : ''} • ultima: ${p.taxaNume}`, 100), value: f.trunc(p.idJoc, 100) }));
+  if (brut && !rez.some((r) => r.value.toLowerCase() === q)) rez.unshift({ name: f.trunc(`${brut} (ID nou)`, 100), value: f.trunc(brut, 32) });
+  return i.respond(rez.slice(0, 25));
+}
+
 async function autocomplete(i) {
   const cfg = store.config(i.guildId);
   const focus = i.options.getFocused(true);
+  if (focus.name === 'id') return autocompleteId(i, focus);
   if (focus.name !== 'tip' && focus.name !== 'taxa') return i.respond([]);
   const q = f.faraDiacritice(String(focus.value || '')).toLowerCase();
   const doarActive = i.commandName === 'plata';
@@ -109,8 +132,32 @@ client.once(Events.ClientReady, async (c) => {
       console.error(`   • ${guild.name}: nu am putut înregistra comenzile (${e.message}). Re-invită botul cu scope-ul applications.commands.`);
     }
   }
+  await seedCanalComenzi(c);
   pornesteScheduler(client, store);
 });
+
+/**
+ * Variabila CANAL_COMENZI (ID-uri separate prin virgulă) setează canalul de încasări
+ * pe serverul căruia îi aparține — o singură dată; apoi se poate schimba cu /config canal.
+ */
+async function seedCanalComenzi(c) {
+  const ids = String(process.env.CANAL_COMENZI || '').split(',').map((s) => s.trim()).filter(Boolean);
+  for (const id of ids) {
+    try {
+      const ch = await c.channels.fetch(id);
+      if (!ch || !ch.guildId) continue;
+      const cfg = store.config(ch.guildId);
+      cfg.stare.seeduri = cfg.stare.seeduri || {};
+      if (cfg.stare.seeduri[`comenzi:${id}`]) continue;
+      cfg.canale.comenzi = id;
+      cfg.stare.seeduri[`comenzi:${id}`] = true;
+      store.save(ch.guildId);
+      console.log(`   • Canal încasări setat: #${ch.name} (${id})`);
+    } catch (e) {
+      console.warn(`   • CANAL_COMENZI ${id}: nu am acces la canal (${e.message})`);
+    }
+  }
+}
 
 client.on(Events.GuildCreate, async (guild) => {
   console.log(`➕ Adăugat pe serverul ${guild.name}`);
