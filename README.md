@@ -117,4 +117,4 @@ npm install
 cp .env.example .env   # metti il token
 npm start
 ```
-Richiede Node.js 18.17 o superiore.
+Richiede Node.js 22.
