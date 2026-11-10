@@ -69,7 +69,11 @@ Opzionali:
 **Incasso (staff)** — solo nel canale impostato con `/config canal tip:Comenzi` (o con la variabile `CANAL_COMENZI`)
 - `/vama id:123` / `/droguri id:123` — incasso rapido (uno per ogni taxa)
 - `/plata tip id [membru] [nume] [cantitate] [suma] [dovada] [nota]` — incasso completo
-- `/anuleaza plata:12 [motiv]` — annulla un pagamento (admin; o staff se attivi `staff_poate_anula`)
+- `/anuleaza plata:12 [motiv]` — annulla un pagamento, resta nello storico (admin; o staff se attivi `staff_poate_anula`)
+- `/editeaza plata plata:12 [id] [membru] [nume] [tip] [cantitate] [suma] [nota]` — corregge un pagamento (es. ID sbagliato); ricalcola totale e scadenza; tutto finisce nel log con "prima → dopo"
+- `/editeaza jucator id:123 [id_nou] [nume] [membru]` — corregge ID / nome / utente Discord su TUTTI i pagamenti di quell'ID
+- `/sterge plata plata:12 confirmare:True` / `/sterge jucator id:123 confirmare:True` — cancella definitivamente (solo admin)
+- Nel campo `plata` basta scrivere l'ID del giocatore, il nome o il numero: il bot mostra la lista dei pagamenti da scegliere
 
 **Evidenza (staff)**
 - `/lista` — lista completa di tutti i pagamenti con TUTTE le info: data e ora, chi ha pagato (Discord + nome IC + ID gioco), chi ha incassato, quantità, somma, sconto, scadenza, nota, prova, se è stato annullato e da chi. Filtri: membro, nome, taxa, staff, periodo, stato (valide/scadute/annullate), ordine

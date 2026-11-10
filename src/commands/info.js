@@ -109,6 +109,10 @@ function campPlataDetaliat(cfg, p, acum = Date.now()) {
   if (p.dovada && f.esteUrl(p.dovada)) linkuri.push(`[📎 Dovadă](${p.dovada})`);
   if (p.logUrl && p.logUrl !== p.dovada) linkuri.push(`[🔗 Mesaj log](${p.logUrl})`);
   if (linkuri.length) lin.push(linkuri.join(' • '));
+  if (p.modificari && p.modificari.length) {
+    const m = p.modificari[p.modificari.length - 1];
+    lin.push(`✏️ **Modificată** de <@${m.de}> ${f.ts(m.la, 'R')}${p.modificari.length > 1 ? ` (${p.modificari.length} modificări)` : ''}`);
+  }
   if (anulata) {
     lin.push(
       `🚫 **Anulată** de <@${p.anulatDe}> ${f.ts(p.anulatLa || p.creat, 'R')}${p.motivAnulare ? ` — ${f.trunc(p.motivAnulare, 100)}` : ''}`
@@ -348,7 +352,10 @@ async function ajutor(i, ctx) {
           [
             ...rapide.map((t) => `\`/${t.comanda} id\` — ${t.emoji} ${t.nume} (${f.suma(t.suma, cfg)})`),
             '`/plata tip id [membru] [nume] [cantitate] [suma] [dovada] [nota]` — încasare completă',
-            '`/anuleaza plata [motiv]` — anulează o plată',
+            '`/anuleaza plata [motiv]` — anulează o plată (rămâne în istoric)',
+            '`/editeaza plata` — corectează o plată (ID, membru, cantitate, sumă...)',
+            '`/editeaza jucator id` — schimbă ID / nume / membru pe toate plățile unui ID',
+            '`/sterge plata` • `/sterge jucator id` — șterge definitiv (admin)',
             ...(cfg.canale.comenzi ? [`📍 Încasările se fac doar în <#${cfg.canale.comenzi}>`] : []),
           ].join('\n'),
           1024

@@ -147,7 +147,7 @@ const OPTIUNI = {
     eticheta: 'Ziua raportului săptămânal',
   },
   fus_orar: { camp: 'fusOrar', tip: 'tz', eticheta: 'Fus orar (ex: Europe/Bucharest)' },
-  staff_poate_anula: { camp: 'staffPoateAnula', tip: 'bool', eticheta: 'Staff-ul (nu doar adminii) poate anula plăți' },
+  staff_poate_anula: { camp: 'staffPoateAnula', tip: 'bool', eticheta: 'Staff-ul (nu doar adminii) poate anula și edita plăți' },
   cantitate_maxima: { camp: 'cantitateMaxima', tip: 'int', min: 1, max: 1000, eticheta: 'Cantitatea maximă la o plată' },
   ping_staff_cereri: { camp: 'pingStaffCereri', tip: 'bool', eticheta: 'Menționează staff-ul la cereri noi' },
   verificare_publica: { camp: 'verificarePublica', tip: 'bool', eticheta: 'Oricine poate verifica taxele altora' },

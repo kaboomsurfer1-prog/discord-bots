@@ -9,6 +9,7 @@ const { plata, anuleaza } = require('./commands/plata');
 const info = require('./commands/info');
 const { config } = require('./commands/config');
 const { panou } = require('./commands/panou');
+const { editeaza, sterge } = require('./commands/editare');
 const componente = require('./interactions/componente');
 const { pornesteScheduler } = require('./services/scheduler');
 const f = require('./utils/format');
@@ -36,6 +37,8 @@ const ctx = { client, store, inregistreazaComenzi };
 const handlers = {
   plata: (i) => plata(i, ctx),
   anuleaza: (i) => anuleaza(i, ctx),
+  editeaza: (i) => editeaza(i, ctx),
+  sterge: (i) => sterge(i, ctx),
   verifica: (i) => info.verifica(i, ctx),
   istoric: (i) => info.istoric(i, ctx),
   lista: (i) => info.lista(i, ctx),
@@ -71,10 +74,32 @@ function autocompleteId(i, focus) {
   return i.respond(rez.slice(0, 25));
 }
 
+/** Sugestii pentru numărul plății: caută după nr., ID din joc sau nume IC. */
+function autocompletePlata(i, focus) {
+  const data = store.get(i.guildId);
+  const cfg = data.config;
+  const q = String(focus.value || '').trim().toLowerCase().replace(/^#/, '');
+  const rez = data.plati
+    .slice()
+    .sort((a, b) => b.creat - a.creat)
+    .filter((p) => !q || String(p.id).startsWith(q) || (p.idJoc || '').toLowerCase().includes(q) || (p.numeIC || '').toLowerCase().includes(q))
+    .slice(0, 25)
+    .map((p) => ({
+      name: f.trunc(
+        `#${p.id} • ${p.taxaNume} ×${p.cantitate} • ${p.idJoc ? `ID ${p.idJoc}` : ''}${p.numeIC ? ` ${p.numeIC}` : ''} • ` +
+          `${f.suma(p.total, cfg)} • ${f.dataLocala(p.creat, cfg.optiuni.fusOrar)}${p.status === 'anulat' ? ' • ANULATĂ' : ''}`,
+        100
+      ),
+      value: p.id,
+    }));
+  return i.respond(rez);
+}
+
 async function autocomplete(i) {
   const cfg = store.config(i.guildId);
   const focus = i.options.getFocused(true);
   if (focus.name === 'id') return autocompleteId(i, focus);
+  if (focus.name === 'plata') return autocompletePlata(i, focus);
   if (focus.name !== 'tip' && focus.name !== 'taxa') return i.respond([]);
   const q = f.faraDiacritice(String(focus.value || '')).toLowerCase();
   const doarActive = i.commandName === 'plata';

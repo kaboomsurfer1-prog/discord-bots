@@ -84,7 +84,9 @@ function comenziDeBaza() {
     .setName('lista')
     .setDescription('📜 Lista completă a plăților: data/ora, cine a încasat, cine a plătit, sumă, dovadă')
     .addStringOption((o) => o.setName('id').setDescription('Doar plățile acestui ID din joc').setMaxLength(32).setAutocomplete(true))
-    .addIntegerOption((o) => o.setName('plata').setDescription('Vezi toate detaliile unei singure plăți (nr. plății, ex: 12)').setMinValue(1))
+    .addIntegerOption((o) =>
+      o.setName('plata').setDescription('Vezi toate detaliile unei singure plăți (nr. plății, ex: 12)').setMinValue(1).setAutocomplete(true)
+    )
     .addUserOption((o) => o.setName('membru').setDescription('Doar plățile acestui membru'))
     .addStringOption((o) => o.setName('nume').setDescription('Doar plățile acestui nume IC').setMaxLength(64))
     .addStringOption((o) => o.setName('tip').setDescription('Doar o anumită taxă').setAutocomplete(true))
@@ -116,8 +118,54 @@ function comenziDeBaza() {
   const anuleaza = new SlashCommandBuilder()
     .setName('anuleaza')
     .setDescription('🚫 Anulează o plată (după ID)')
-    .addIntegerOption((o) => o.setName('plata').setDescription('Numărul plății (ex: 12 — îl vezi în /lista)').setRequired(true).setMinValue(1))
+    .addIntegerOption((o) =>
+      o.setName('plata').setDescription('Numărul plății (ex: 12 — îl vezi în /lista)').setRequired(true).setMinValue(1).setAutocomplete(true)
+    )
     .addStringOption((o) => o.setName('motiv').setDescription('Motivul anulării').setMaxLength(300));
+
+  const optPlata = (o) =>
+    o.setName('plata').setDescription('Numărul plății (scrie ID-ul, numele sau nr. și alege din listă)').setRequired(true).setMinValue(1).setAutocomplete(true);
+  const optConfirmare = (o) => o.setName('confirmare').setDescription('Sigur? Ștergerea nu se poate anula').setRequired(true);
+
+  const editeaza = new SlashCommandBuilder()
+    .setName('editeaza')
+    .setDescription('✏️ Corectează o plată sau datele unui jucător (după ID)')
+    .addSubcommand((s) =>
+      s
+        .setName('plata')
+        .setDescription('Corectează o plată: ID greșit, membru, nume, taxă, cantitate, sumă, notă')
+        .addIntegerOption(optPlata)
+        .addStringOption((o) => o.setName('id').setDescription('ID-ul corect al jucătorului din joc').setMaxLength(32).setAutocomplete(true))
+        .addUserOption((o) => o.setName('membru').setDescription('Membrul Discord corect'))
+        .addStringOption((o) => o.setName('nume').setDescription('Numele IC corect (scrie - ca să-l ștergi)').setMaxLength(64))
+        .addStringOption((o) => o.setName('tip').setDescription('Taxa corectă').setAutocomplete(true))
+        .addIntegerOption((o) => o.setName('cantitate').setDescription('Cantitatea corectă').setMinValue(1).setMaxValue(1000))
+        .addStringOption((o) => o.setName('suma').setDescription('Suma totală corectă (ex: 30000, 30k)').setMaxLength(20))
+        .addStringOption((o) => o.setName('nota').setDescription('Notă nouă (scrie - ca s-o ștergi)').setMaxLength(300))
+        .addBooleanOption((o) => o.setName('scoate_membru').setDescription('Scoate legătura cu membrul Discord'))
+    )
+    .addSubcommand((s) =>
+      s
+        .setName('jucator')
+        .setDescription('Schimbă ID-ul / numele / membrul pe TOATE plățile unui ID din joc')
+        .addStringOption((o) => o.setName('id').setDescription('ID-ul actual al jucătorului').setRequired(true).setMaxLength(32).setAutocomplete(true))
+        .addStringOption((o) => o.setName('id_nou').setDescription('ID-ul corect').setMaxLength(32))
+        .addStringOption((o) => o.setName('nume').setDescription('Numele IC corect (scrie - ca să-l ștergi)').setMaxLength(64))
+        .addUserOption((o) => o.setName('membru').setDescription('Membrul Discord al jucătorului'))
+        .addBooleanOption((o) => o.setName('scoate_membru').setDescription('Scoate legătura cu membrul Discord'))
+    );
+
+  const sterge = new SlashCommandBuilder()
+    .setName('sterge')
+    .setDescription('🗑️ Șterge definitiv o plată sau toate plățile unui ID (admin)')
+    .addSubcommand((s) => s.setName('plata').setDescription('Șterge definitiv o plată').addIntegerOption(optPlata).addBooleanOption(optConfirmare))
+    .addSubcommand((s) =>
+      s
+        .setName('jucator')
+        .setDescription('Șterge TOATE plățile unui ID din joc')
+        .addStringOption((o) => o.setName('id').setDescription('ID-ul jucătorului din joc').setRequired(true).setMaxLength(32).setAutocomplete(true))
+        .addBooleanOption(optConfirmare)
+    );
 
   const raport = new SlashCommandBuilder()
     .setName('raport')
@@ -286,7 +334,7 @@ function comenziDeBaza() {
         .addBooleanOption((o) => o.setName('confirmare').setDescription('Sigur? Plățile NU se șterg').setRequired(true))
     );
 
-  return [plata, verifica, lista, istoric, anuleaza, raport, top, activi, taxe, panou, exp, ajutor, config];
+  return [plata, verifica, lista, istoric, anuleaza, editeaza, sterge, raport, top, activi, taxe, panou, exp, ajutor, config];
 }
 
 const NUME_REZERVATE = new Set(comenziDeBaza().map((c) => c.name));
